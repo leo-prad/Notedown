@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useStore } from "../store";
+import { getCurrentEditor } from "../lib/editor";
 
 interface Heading {
   level: number;
@@ -29,12 +30,15 @@ export function Sidebar() {
   );
 
   const jump = (text: string) => {
-    const nodes = document.querySelectorAll(
-      ".nd-editor-host .ProseMirror h1, .nd-editor-host .ProseMirror h2, .nd-editor-host .ProseMirror h3, .nd-editor-host .ProseMirror h4, .nd-editor-host .ProseMirror h5, .nd-editor-host .ProseMirror h6",
-    );
-    for (const n of Array.from(nodes)) {
-      if ((n.textContent ?? "").trim() === text) {
-        n.scrollIntoView({ behavior: "smooth", block: "start" });
+    const view = getCurrentEditor();
+    if (!view) return;
+    const doc = view.state.doc;
+    for (let n = 1; n <= doc.lines; n++) {
+      const line = doc.line(n);
+      const m = /^#{1,6}\s+(.*)$/.exec(line.text);
+      if (m && m[1].replace(/#+\s*$/, "").trim() === text) {
+        view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+        view.focus();
         break;
       }
     }

@@ -158,7 +158,7 @@ export default function App() {
   useEffect(() => {
     if (!ui.focusMode) return;
     const onSel = () => {
-      const root = document.querySelector(".nd-editor-host .ProseMirror");
+      const root = document.querySelector(".nd-editor-host .cm-content");
       if (!root) return;
       root.querySelectorAll(".nd-focus-line").forEach((n) =>
         n.classList.remove("nd-focus-line"),

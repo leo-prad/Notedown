@@ -1,10 +1,45 @@
 import { useEffect, useRef } from "react";
-import { Crepe } from "@milkdown/crepe";
-import "@milkdown/crepe/theme/common/style.css";
+import { EditorState } from "@codemirror/state";
+import { EditorView, keymap, drawSelection, dropCursor } from "@codemirror/view";
+import { history, historyKeymap, defaultKeymap, indentWithTab } from "@codemirror/commands";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags as t } from "@lezer/highlight";
 import { useStore } from "../store";
 import { setCurrentEditor } from "../lib/editor";
-import { resolveImageSrc, saveImage } from "../lib/tauri";
-import { buildAiProvider } from "../lib/ai";
+import { livePreview, autoPairMarkers } from "../lib/livepreview";
+import { saveImage } from "../lib/tauri";
+
+const highlight = HighlightStyle.define([
+  { tag: t.keyword, class: "cmt-kw" },
+  { tag: [t.string, t.special(t.string)], class: "cmt-str" },
+  { tag: [t.number, t.bool, t.null], class: "cmt-num" },
+  { tag: [t.comment, t.lineComment, t.blockComment], class: "cmt-cmt" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], class: "cmt-fn" },
+  { tag: [t.typeName, t.className, t.namespace], class: "cmt-type" },
+  { tag: [t.propertyName, t.attributeName], class: "cmt-prop" },
+  { tag: [t.operator, t.punctuation], class: "cmt-op" },
+  { tag: [t.variableName, t.definition(t.variableName)], class: "cmt-var" },
+]);
+
+const baseTheme = EditorView.theme({
+  "&": { height: "100%", color: "var(--nd-text)", backgroundColor: "var(--nd-surface)" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-scroller": {
+    fontFamily: "var(--nd-font)",
+    lineHeight: "var(--nd-line-height, 1.6)",
+    overflow: "auto",
+  },
+  ".cm-content": {
+    maxWidth: "var(--nd-content-width, 800px)",
+    margin: "0 auto",
+    padding: "44px 32px 45vh",
+    caretColor: "var(--nd-accent)",
+    fontSize: "var(--nd-font-size, 16px)",
+  },
+  ".cm-line": { padding: "0" },
+});
 
 export function EditorPane() {
   const tabId = useStore((s) => s.activeId);
@@ -17,66 +52,78 @@ export function EditorPane() {
     if (!host || !tabId) return;
     const tab = useStore.getState().tabs.find((t) => t.id === tabId);
     if (!tab || tab.sourceMode) return;
-
     const docPath = tab.path;
     const folder = settings.imageFolderName || "assets";
-    let ready = false;
-    let destroyed = false;
 
-    const crepe = new Crepe({
-      root: host,
-      defaultValue: tab.content,
-      features: {
-        [Crepe.Feature.AI]: settings.aiEnabled,
-        // The slash "/" command menu with glyph icons — disabled by request.
-        [Crepe.Feature.BlockEdit]: false,
-      },
-      featureConfigs: {
-        [Crepe.Feature.Placeholder]: {
-          text: "",
-          mode: "doc",
-        },
-        [Crepe.Feature.ImageBlock]: {
-          onUpload: (f: File) => saveImage(f, docPath, folder),
-          blockOnUpload: (f: File) => saveImage(f, docPath, folder),
-          proxyDomURL: (url: string) => resolveImageSrc(url, docPath),
-        },
-        ...(settings.aiEnabled
-          ? {
-              [Crepe.Feature.AI]: {
-                provider: buildAiProvider(settings),
-                instructionPlaceholder: "Ask AI to write or edit…",
-              },
+    const insertImageMarkdown = (view: EditorView, path: string, alt: string) => {
+      const pos = view.state.selection.main.from;
+      view.dispatch({ changes: { from: pos, insert: `![${alt}](${path})` } });
+    };
+
+    const view = new EditorView({
+      parent: host,
+      state: EditorState.create({
+        doc: tab.content,
+        extensions: [
+          history(),
+          drawSelection(),
+          dropCursor(),
+          EditorView.lineWrapping,
+          markdown({ base: markdownLanguage, codeLanguages: languages }),
+          syntaxHighlighting(highlight),
+          livePreview,
+          autoPairMarkers,
+          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          baseTheme,
+          EditorView.contentAttributes.of({
+            spellcheck: String(settings.spellcheck),
+          }),
+          EditorView.updateListener.of((u) => {
+            if (u.docChanged) {
+              useStore.getState().updateContent(tabId, u.state.doc.toString());
             }
-          : {}),
-      },
+          }),
+          EditorView.domEventHandlers({
+            paste(e, view) {
+              const items = e.clipboardData?.items;
+              if (!items) return false;
+              for (const it of items) {
+                if (it.type.startsWith("image/")) {
+                  const file = it.getAsFile();
+                  if (file) {
+                    e.preventDefault();
+                    saveImage(file, docPath, folder).then((p) =>
+                      insertImageMarkdown(view, p, ""),
+                    );
+                    return true;
+                  }
+                }
+              }
+              return false;
+            },
+            drop(e, view) {
+              const files = e.dataTransfer?.files;
+              if (!files || files.length === 0) return false;
+              const imgs = Array.from(files).filter((f) => f.type.startsWith("image/"));
+              if (imgs.length === 0) return false;
+              e.preventDefault();
+              imgs.forEach((f) =>
+                saveImage(f, docPath, folder).then((p) => insertImageMarkdown(view, p, f.name)),
+              );
+              return true;
+            },
+          }),
+        ],
+      }),
     });
 
-    crepe
-      .create()
-      .then(() => {
-        if (destroyed) {
-          crepe.destroy();
-          return;
-        }
-        ready = true;
-        setCurrentEditor(crepe);
-        crepe.on((listener) => {
-          listener.markdownUpdated((_ctx, markdown) => {
-            useStore.getState().updateContent(tabId, markdown);
-          });
-        });
-        const pm = host.querySelector(".ProseMirror");
-        if (pm) pm.setAttribute("spellcheck", String(settings.spellcheck));
-      })
-      .catch((e) => console.error("Editor init failed", e));
+    setCurrentEditor(view);
+    view.focus();
 
     return () => {
-      destroyed = true;
       setCurrentEditor(null);
-      if (ready) crepe.destroy();
+      view.destroy();
     };
-    // Rebuild on tab switch or when settings bump the epoch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId, epoch]);
 

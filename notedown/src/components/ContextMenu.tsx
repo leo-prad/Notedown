@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "../store";
-import { editorCmd, focusEditor } from "../lib/editor";
+import { editorCmd } from "../lib/editor";
 
 export interface CtxState {
   x: number;
@@ -81,7 +81,7 @@ export function ContextMenu({ x, y, onClose }: CtxState & { onClose: () => void 
       <div className="nd-ctx-format">
         <button className="nd-ctx-fmt" title="Bold" onMouseDown={(e) => e.stopPropagation()} onClick={act(editorCmd.bold)}><b>B</b></button>
         <button className="nd-ctx-fmt" title="Italic" onMouseDown={(e) => e.stopPropagation()} onClick={act(editorCmd.italic)}><i>I</i></button>
-        <button className="nd-ctx-fmt" title="Underline" onMouseDown={(e) => e.stopPropagation()} onClick={act(() => exec("underline"))}><u>U</u></button>
+        <button className="nd-ctx-fmt" title="Underline" onMouseDown={(e) => e.stopPropagation()} onClick={act(editorCmd.underline)}><u>U</u></button>
         <button className="nd-ctx-fmt" title="Strikethrough" onMouseDown={(e) => e.stopPropagation()} onClick={act(editorCmd.strike)}><s>S</s></button>
         <button className="nd-ctx-fmt" title="Inline code" onMouseDown={(e) => e.stopPropagation()} onClick={act(editorCmd.inlineCode)}><span style={{ fontFamily: "monospace" }}>{"<>"}</span></button>
       </div>
@@ -105,5 +105,3 @@ export function ContextMenu({ x, y, onClose }: CtxState & { onClose: () => void 
     </div>
   );
 }
-
-export { focusEditor };

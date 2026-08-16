@@ -1,48 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
-import { editorCmd, focusEditor } from "../lib/editor";
+import { editorCmd, focusEditor, getActiveFormat, type ActiveFormat } from "../lib/editor";
 
-interface Active {
-  bold: boolean;
-  italic: boolean;
-  strike: boolean;
-  code: boolean;
-  level: number; // 0 = paragraph
-}
-const EMPTY: Active = { bold: false, italic: false, strike: false, code: false, level: 0 };
-
-function computeActive(): Active {
-  const root = document.querySelector(".nd-editor-host .ProseMirror");
-  const sel = window.getSelection();
-  if (!root || !sel || sel.rangeCount === 0 || !sel.anchorNode) return EMPTY;
-  if (!root.contains(sel.anchorNode)) return EMPTY;
-  const a: Active = { ...EMPTY };
-  let el: HTMLElement | null =
-    sel.anchorNode.nodeType === 3
-      ? sel.anchorNode.parentElement
-      : (sel.anchorNode as HTMLElement);
-  while (el && el !== root) {
-    const t = el.tagName;
-    if (t === "STRONG" || t === "B") a.bold = true;
-    else if (t === "EM" || t === "I") a.italic = true;
-    else if (t === "S" || t === "DEL" || t === "STRIKE") a.strike = true;
-    else if (t === "CODE") a.code = true;
-    else if (/^H[1-6]$/.test(t)) a.level = Number(t[1]);
-    el = el.parentElement;
-  }
-  return a;
-}
+const EMPTY: ActiveFormat = { bold: false, italic: false, strike: false, code: false, level: 0 };
 
 export function Toolbar() {
   const active = useStore((s) => s.tabs.find((t) => t.id === s.activeId));
   const settings = useStore((s) => s.settings);
   const disabled = !active || active.sourceMode;
   const [headingOpen, setHeadingOpen] = useState(false);
-  const [fmt, setFmt] = useState<Active>(EMPTY);
+  const [fmt, setFmt] = useState<ActiveFormat>(EMPTY);
   const hRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const update = () => setFmt(computeActive());
+    const update = () => setFmt(getActiveFormat());
     document.addEventListener("selectionchange", update);
     return () => document.removeEventListener("selectionchange", update);
   }, []);

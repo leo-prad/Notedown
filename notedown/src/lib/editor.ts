@@ -1,88 +1,113 @@
-import type { Crepe } from "@milkdown/crepe";
-import { callCommand } from "@milkdown/kit/utils";
-import { editorViewCtx } from "@milkdown/kit/core";
-import {
-  toggleStrongCommand,
-  toggleEmphasisCommand,
-  toggleInlineCodeCommand,
-  wrapInHeadingCommand,
-  turnIntoTextCommand,
-  wrapInBlockquoteCommand,
-  wrapInBulletListCommand,
-  wrapInOrderedListCommand,
-  createCodeBlockCommand,
-  insertHrCommand,
-  insertImageCommand,
-  sinkListItemCommand,
-  liftListItemCommand,
-} from "@milkdown/kit/preset/commonmark";
-import {
-  toggleStrikethroughCommand,
-  insertTableCommand,
-} from "@milkdown/kit/preset/gfm";
-import { undoCommand, redoCommand } from "@milkdown/kit/plugin/history";
+import { EditorView } from "@codemirror/view";
+import { undo, redo } from "@codemirror/commands";
+import { syntaxTree } from "@codemirror/language";
+import { wrapSelection, setHeading } from "./livepreview";
 
-/**
- * The Crepe instance for the currently-focused editor. Set by EditorPane on
- * mount so that the menu bar and keyboard shortcuts can drive it without prop
- * drilling.
- */
-let current: Crepe | null = null;
+/** The CodeMirror view for the currently-focused editor. */
+let current: EditorView | null = null;
 
-export function setCurrentEditor(crepe: Crepe | null) {
-  current = crepe;
+export function setCurrentEditor(view: EditorView | null) {
+  current = view;
 }
-
-export function getCurrentEditor(): Crepe | null {
+export function getCurrentEditor(): EditorView | null {
   return current;
 }
 
-function run(fn: (crepe: Crepe) => void) {
+export function focusEditor() {
+  current?.focus();
+}
+
+function run(fn: (v: EditorView) => void) {
   if (current) {
     fn(current);
-    focusEditor();
+    current.focus();
   }
 }
 
-export function focusEditor() {
-  current?.editor.action((ctx) => {
-    try {
-      ctx.get(editorViewCtx).focus();
-    } catch {
-      /* view not ready */
-    }
+/** Toggle a line prefix (blockquote, list markers) on the selected lines. */
+function toggleLinePrefix(view: EditorView, prefix: string | ((n: number) => string)) {
+  const { state } = view;
+  const range = state.selection.main;
+  const startLine = state.doc.lineAt(range.from).number;
+  const endLine = state.doc.lineAt(range.to).number;
+  const changes = [];
+  let idx = 1;
+  for (let n = startLine; n <= endLine; n++) {
+    const line = state.doc.line(n);
+    const p = typeof prefix === "function" ? prefix(idx++) : prefix;
+    const has = line.text.startsWith(p);
+    changes.push({
+      from: line.from,
+      to: line.from + (has ? p.length : 0),
+      insert: has ? "" : p,
+    });
+  }
+  view.dispatch({ changes });
+}
+
+function insertAtCursor(view: EditorView, text: string, cursorOffset?: number) {
+  const pos = view.state.selection.main.from;
+  view.dispatch({
+    changes: { from: pos, insert: text },
+    selection: { anchor: pos + (cursorOffset ?? text.length) },
   });
 }
 
 export const editorCmd = {
-  heading: (level: number) =>
-    run((c) => c.editor.action(callCommand(wrapInHeadingCommand.key, level))),
-  paragraph: () =>
-    run((c) => c.editor.action(callCommand(turnIntoTextCommand.key))),
-  bold: () => run((c) => c.editor.action(callCommand(toggleStrongCommand.key))),
-  italic: () =>
-    run((c) => c.editor.action(callCommand(toggleEmphasisCommand.key))),
-  strike: () =>
-    run((c) => c.editor.action(callCommand(toggleStrikethroughCommand.key))),
-  inlineCode: () =>
-    run((c) => c.editor.action(callCommand(toggleInlineCodeCommand.key))),
-  blockquote: () =>
-    run((c) => c.editor.action(callCommand(wrapInBlockquoteCommand.key))),
-  bulletList: () =>
-    run((c) => c.editor.action(callCommand(wrapInBulletListCommand.key))),
-  orderedList: () =>
-    run((c) => c.editor.action(callCommand(wrapInOrderedListCommand.key))),
-  indent: () =>
-    run((c) => c.editor.action(callCommand(sinkListItemCommand.key))),
-  outdent: () =>
-    run((c) => c.editor.action(callCommand(liftListItemCommand.key))),
+  heading: (level: number) => run((v) => setHeading(v, level)),
+  paragraph: () => run((v) => setHeading(v, 0)),
+  bold: () => run((v) => wrapSelection(v, "**")),
+  italic: () => run((v) => wrapSelection(v, "*")),
+  strike: () => run((v) => wrapSelection(v, "~~")),
+  inlineCode: () => run((v) => wrapSelection(v, "`")),
+  underline: () => run((v) => wrapSelection(v, "<u>", "</u>")),
+  blockquote: () => run((v) => toggleLinePrefix(v, "> ")),
+  bulletList: () => run((v) => toggleLinePrefix(v, "- ")),
+  orderedList: () => run((v) => toggleLinePrefix(v, (n) => `${n}. `)),
   codeBlock: () =>
-    run((c) => c.editor.action(callCommand(createCodeBlockCommand.key))),
-  hr: () => run((c) => c.editor.action(callCommand(insertHrCommand.key))),
+    run((v) => insertAtCursor(v, "```\n\n```", 4)),
+  hr: () => run((v) => insertAtCursor(v, "\n---\n")),
   table: () =>
-    run((c) => c.editor.action(callCommand(insertTableCommand.key))),
+    run((v) =>
+      insertAtCursor(
+        v,
+        "\n| Column | Column |\n| --- | --- |\n| Cell | Cell |\n",
+      ),
+    ),
   image: (src: string, alt = "") =>
-    run((c) => c.editor.action(callCommand(insertImageCommand.key, { src, alt }))),
-  undo: () => run((c) => c.editor.action(callCommand(undoCommand.key))),
-  redo: () => run((c) => c.editor.action(callCommand(redoCommand.key))),
+    run((v) => insertAtCursor(v, `![${alt}](${src})`)),
+  undo: () => run((v) => undo(v)),
+  redo: () => run((v) => redo(v)),
 };
+
+export interface ActiveFormat {
+  bold: boolean;
+  italic: boolean;
+  strike: boolean;
+  code: boolean;
+  level: number;
+}
+
+const EMPTY: ActiveFormat = { bold: false, italic: false, strike: false, code: false, level: 0 };
+
+/** Inspect the syntax tree at the caret to light up the toolbar. */
+export function getActiveFormat(): ActiveFormat {
+  const view = current;
+  if (!view) return EMPTY;
+  const a: ActiveFormat = { ...EMPTY };
+  const pos = view.state.selection.main.head;
+  let node = syntaxTree(view.state).resolve(pos, -1);
+  while (node) {
+    const n = node.name;
+    if (n === "StrongEmphasis") a.bold = true;
+    else if (n === "Emphasis") a.italic = true;
+    else if (n === "Strikethrough") a.strike = true;
+    else if (n === "InlineCode" || n === "FencedCode") a.code = true;
+    else if (/^ATXHeading[1-6]$/.test(n)) a.level = Number(n.slice(-1));
+    if (!node.parent) break;
+    node = node.parent;
+  }
+  return a;
+}
+
+export { EditorView };
