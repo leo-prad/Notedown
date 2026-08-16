@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore } from "./store";
 import { applyTheme } from "./lib/theme";
@@ -6,13 +6,14 @@ import { saveSession } from "./lib/tauri";
 import { editorCmd } from "./lib/editor";
 import { TitleBar } from "./components/TitleBar";
 import { MenuBar } from "./components/MenuBar";
-import { TabBar } from "./components/TabBar";
+import { Toolbar } from "./components/Toolbar";
 import { EditorPane } from "./components/EditorPane";
 import { SourceView } from "./components/SourceView";
 import { StatusBar } from "./components/StatusBar";
 import { Sidebar } from "./components/Sidebar";
 import { FindReplace } from "./components/FindReplace";
 import { Settings } from "./components/Settings";
+import { ContextMenu, type CtxState } from "./components/ContextMenu";
 import { printDocument } from "./lib/export";
 import "./index.css";
 
@@ -32,6 +33,7 @@ export default function App() {
   const accent = useStore((s) => s.settings.accent);
   const ui = useStore((s) => s.ui);
   const active = useStore((s) => s.tabs.find((t) => t.id === s.activeId));
+  const [ctx, setCtx] = useState<CtxState | null>(null);
 
   // Boot
   useEffect(() => {
@@ -139,6 +141,19 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Custom right-click action menu (replaces the browser context menu),
+  // except inside real text inputs where the native menu is more useful.
+  useEffect(() => {
+    const onCtx = (e: MouseEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      setCtx({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("contextmenu", onCtx);
+    return () => window.removeEventListener("contextmenu", onCtx);
+  }, []);
+
   // Focus mode: dim non-active blocks
   useEffect(() => {
     if (!ui.focusMode) return;
@@ -173,24 +188,32 @@ export default function App() {
   return (
     <div className={rootClass}>
       <TitleBar />
-      {!ui.settingsOpen && <MenuBar />}
-      {!ui.settingsOpen && <TabBar />}
       {ui.settingsOpen ? (
         <Settings />
       ) : (
-        <div className="nd-body">
-          {ui.sidebarOpen && <Sidebar />}
-          <div className="nd-main">
-            {ui.findOpen && <FindReplace />}
-            {active && active.sourceMode ? (
-              <SourceView tab={active} />
-            ) : (
-              <EditorPane />
-            )}
+        <>
+          <div className="nd-ribbon">
+            <MenuBar />
+            <div className="nd-ribbon-spacer" />
+            <Toolbar />
           </div>
-        </div>
+          <div className="nd-body">
+            {ui.sidebarOpen && <Sidebar />}
+            <div className="nd-main">
+              {ui.findOpen && <FindReplace />}
+              {active && active.sourceMode ? (
+                <SourceView tab={active} />
+              ) : (
+                <EditorPane />
+              )}
+            </div>
+          </div>
+          {ui.statusBarOn && <StatusBar />}
+        </>
       )}
-      {ui.statusBarOn && !ui.settingsOpen && <StatusBar />}
+      {ctx && (
+        <ContextMenu x={ctx.x} y={ctx.y} onClose={() => setCtx(null)} />
+      )}
     </div>
   );
 }

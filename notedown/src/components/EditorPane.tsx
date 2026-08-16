@@ -28,11 +28,13 @@ export function EditorPane() {
       defaultValue: tab.content,
       features: {
         [Crepe.Feature.AI]: settings.aiEnabled,
+        // The slash "/" command menu with glyph icons — disabled by request.
+        [Crepe.Feature.BlockEdit]: false,
       },
       featureConfigs: {
         [Crepe.Feature.Placeholder]: {
-          text: "Write here, or press '/' for commands…",
-          mode: "block",
+          text: "",
+          mode: "doc",
         },
         [Crepe.Feature.ImageBlock]: {
           onUpload: (f: File) => saveImage(f, docPath, folder),

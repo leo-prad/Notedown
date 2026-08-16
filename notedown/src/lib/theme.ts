@@ -34,6 +34,12 @@ export function isDarkTheme(theme: ThemeName): boolean {
 }
 
 let linkEl: HTMLLinkElement | null = null;
+let overrideEl: HTMLStyleElement | null = null;
+
+const UI_FONT =
+  '"Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif';
+const CODE_FONT =
+  '"Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace';
 
 /** Load / swap the Crepe theme stylesheet and drive the app chrome theme. */
 export function applyTheme(theme: ThemeName, accent: string) {
@@ -47,7 +53,28 @@ export function applyTheme(theme: ThemeName, accent: string) {
   const href = URLS[effective];
   if (linkEl.getAttribute("href") !== href) linkEl.setAttribute("href", href);
 
+  // Crepe defines its font/color vars ON the `.milkdown` element, so a :root
+  // override loses. Inject a `.milkdown` rule AFTER the theme link so it wins.
+  if (!overrideEl) {
+    overrideEl = document.createElement("style");
+    overrideEl.id = "crepe-overrides";
+    document.head.appendChild(overrideEl);
+  } else if (overrideEl.previousElementSibling !== linkEl) {
+    document.head.appendChild(overrideEl); // keep it after the link
+  }
+
+  const dark = isDarkTheme(theme);
+  const bg = dark ? "#202020" : "#fffff5";
+  const fg = dark ? "#e6e6e6" : "#1b1b1b";
+  overrideEl.textContent = `.milkdown{
+    --crepe-font-title: ${UI_FONT};
+    --crepe-font-default: ${UI_FONT};
+    --crepe-font-code: ${CODE_FONT};
+    --crepe-color-background: ${bg};
+    --crepe-color-on-background: ${fg};
+  }`;
+
   const root = document.documentElement;
-  root.dataset.theme = isDarkTheme(theme) ? "dark" : "light";
+  root.dataset.theme = dark ? "dark" : "light";
   root.style.setProperty("--nd-accent", accent);
 }

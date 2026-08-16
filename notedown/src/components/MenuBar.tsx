@@ -33,7 +33,7 @@ export function MenuBar() {
   const menus = useMenus();
 
   return (
-    <div className="nd-menubar" ref={barRef}>
+    <div className="nd-menus" ref={barRef}>
       {TOP.map((name, i) => (
         <div key={name} className="nd-menu-wrap">
           <button

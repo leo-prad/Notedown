@@ -71,6 +71,7 @@ interface Store {
   moveTab: (fromId: string, toId: string) => void;
   updateContent: (id: string, content: string) => void;
   setFormat: (id: string, format: FileFormat) => void;
+  renameTab: (id: string, title: string) => void;
 
   saveActive: () => Promise<void>;
   saveTab: (id: string) => Promise<void>;
@@ -206,6 +207,14 @@ export const useStore = create<Store>((set, get) => ({
     }));
   },
 
+  renameTab: (id, title) => {
+    const clean = title.trim();
+    if (!clean) return;
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, title: clean } : t)),
+    }));
+  },
+
   saveActive: async () => {
     const { activeId } = get();
     if (activeId) await get().saveTab(activeId);
@@ -235,7 +244,9 @@ export const useStore = create<Store>((set, get) => ({
     if (!tab) return;
     const suggested = tab.path
       ? basename(tab.path)
-      : `${tab.title}.${tab.format}`;
+      : /\.(md|markdown|txt)$/i.test(tab.title)
+        ? tab.title
+        : `${tab.title}.${tab.format}`;
     const path = await saveFileDialog(suggested);
     if (!path) return;
     try {
