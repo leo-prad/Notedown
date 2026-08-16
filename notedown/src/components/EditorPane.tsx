@@ -6,10 +6,20 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import "katex/dist/katex.min.css";
 import { useStore } from "../store";
 import { setCurrentEditor } from "../lib/editor";
-import { livePreview, autoPairMarkers } from "../lib/livepreview";
+import { livePreview, autoPairMarkers, wrapSelection } from "../lib/livepreview";
 import { saveImage } from "../lib/tauri";
+
+const formatKeymap = keymap.of([
+  { key: "Mod-b", run: (v) => (wrapSelection(v, "**"), true) },
+  { key: "Mod-i", run: (v) => (wrapSelection(v, "*"), true) },
+  { key: "Mod-u", run: (v) => (wrapSelection(v, "<u>", "</u>"), true) },
+  { key: "Mod-Shift-x", run: (v) => (wrapSelection(v, "~~"), true) },
+  { key: "Mod-`", run: (v) => (wrapSelection(v, "`"), true) },
+]);
 
 const highlight = HighlightStyle.define([
   { tag: t.keyword, class: "cmt-kw" },
@@ -71,8 +81,9 @@ export function EditorPane() {
           EditorView.lineWrapping,
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
-          livePreview,
+          livePreview(docPath),
           autoPairMarkers,
+          formatKeymap,
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           baseTheme,
           EditorView.contentAttributes.of({
@@ -84,6 +95,17 @@ export function EditorPane() {
             }
           }),
           EditorView.domEventHandlers({
+            mousedown(e) {
+              const el = (e.target as HTMLElement)?.closest?.("[data-href]");
+              if (el && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                let href = el.getAttribute("data-href") || "";
+                if (href && !/^[a-z]+:/i.test(href)) href = "https://" + href;
+                openUrl(href).catch(() => {});
+                return true;
+              }
+              return false;
+            },
             paste(e, view) {
               const items = e.clipboardData?.items;
               if (!items) return false;

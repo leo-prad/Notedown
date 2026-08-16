@@ -2,24 +2,17 @@ import {
   EditorView,
   Decoration,
   type DecorationSet,
-  ViewPlugin,
-  type ViewUpdate,
+  WidgetType,
 } from "@codemirror/view";
-import { EditorState, type Range } from "@codemirror/state";
+import { StateField, EditorState, type Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import katex from "katex";
 
 /**
- * Typora / Obsidian-style "live preview" for a CodeMirror markdown document.
- *
- * The document is real Markdown source, but we decorate it so that:
- *  - heading lines render at heading size/weight,
- *  - inline **bold**, *italic*, ~~strike~~, `code` render styled,
- *  - the syntax markers (`#`, `*`, `` ` ``, `~`, `>`) are HIDDEN unless the
- *    caret/selection is inside that element, in which case they show faintly.
- *
- * That produces the effect the user wants: type `#`, the line becomes a big
- * header with a faint `#`; move away / press space and the `#` disappears;
- * backspace back in and it returns.
+ * Typora / Obsidian-style "live preview" for a CodeMirror markdown document,
+ * implemented as a StateField so it can use block (line-crossing) decorations
+ * for multi-line math and code fences. See wiki concept `live-preview`.
  */
 
 const HEADING_LINE: Record<string, Decoration> = {
@@ -41,7 +34,6 @@ const CONTENT_MARK: Record<string, Decoration> = {
 const FAINT = Decoration.mark({ class: "cm-md-mark" });
 const HIDE = Decoration.replace({});
 
-// Marker node names whose visibility depends on caret position.
 const MARK_NODES = new Set([
   "HeaderMark",
   "EmphasisMark",
@@ -53,81 +45,258 @@ function overlaps(aFrom: number, aTo: number, bFrom: number, bTo: number) {
   return aFrom <= bTo && bFrom <= aTo;
 }
 
-function buildDecorations(view: EditorView): DecorationSet {
-  const decos: Range<Decoration>[] = [];
-  const sel = view.state.selection.main;
-  const tree = syntaxTree(view.state);
+function resolveSrc(src: string, docPath: string | null): string {
+  if (/^(https?:|data:|asset:|blob:)/i.test(src)) return src;
+  const isAbsolute = /^[a-z]:[\\/]/i.test(src) || src.startsWith("/");
+  let abs = src;
+  if (!isAbsolute) {
+    if (!docPath) return src;
+    const dir = docPath.replace(/[\\/][^\\/]*$/, "");
+    abs = dir + "/" + src;
+  }
+  try {
+    return convertFileSrc(abs);
+  } catch {
+    return src;
+  }
+}
 
-  for (const { from, to } of view.visibleRanges) {
-    tree.iterate({
-      from,
-      to,
-      enter: (node) => {
-        const name = node.name;
+class MathWidget extends WidgetType {
+  constructor(
+    readonly tex: string,
+    readonly display: boolean,
+  ) {
+    super();
+  }
+  eq(o: MathWidget) {
+    return o.tex === this.tex && o.display === this.display;
+  }
+  toDOM() {
+    const el = document.createElement(this.display ? "div" : "span");
+    el.className = "cm-math" + (this.display ? " cm-math-display" : "");
+    try {
+      el.innerHTML = katex.renderToString(this.tex, {
+        throwOnError: false,
+        displayMode: this.display,
+      });
+    } catch {
+      el.textContent = this.tex;
+    }
+    return el;
+  }
+}
 
-        if (HEADING_LINE[name]) {
-          const line = view.state.doc.lineAt(node.from);
-          decos.push(HEADING_LINE[name].range(line.from));
-          return;
-        }
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+  ) {
+    super();
+  }
+  eq(o: ImageWidget) {
+    return o.src === this.src && o.alt === this.alt;
+  }
+  toDOM() {
+    const img = document.createElement("img");
+    img.src = this.src;
+    img.alt = this.alt;
+    img.className = "cm-img";
+    return img;
+  }
+}
 
-        if (CONTENT_MARK[name]) {
-          decos.push(CONTENT_MARK[name].range(node.from, node.to));
-          return;
-        }
+interface MathSpan {
+  from: number;
+  to: number;
+  tex: string;
+  display: boolean;
+}
 
-        if (MARK_NODES.has(name)) {
-          // Reveal the marker only when the caret is inside its parent element
-          // (the whole heading line, or the whole emphasis/code span).
-          const parent = node.node.parent;
-          const cFrom = parent ? parent.from : node.from;
-          const cTo = parent ? parent.to : node.to;
-          const reveal = overlaps(sel.from, sel.to, cFrom, cTo);
-          if (reveal) {
-            decos.push(FAINT.range(node.from, node.to));
-          } else if (node.to > node.from) {
-            // Hide the marker (and the trailing space after a heading `#`).
-            let end = node.to;
-            if (name === "HeaderMark") {
-              const after = view.state.doc.sliceString(node.to, node.to + 1);
-              if (after === " ") end = node.to + 1;
-            }
-            decos.push(HIDE.range(node.from, end));
-          }
-        }
-      },
+const MATH_RE = /\$\$([^$]+?)\$\$|\$(?!\s)((?:[^$\n]|\\\$)+?)(?<!\s)\$/g;
+
+function findMath(state: EditorState): MathSpan[] {
+  const spans: MathSpan[] = [];
+  const text = state.doc.toString();
+  MATH_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = MATH_RE.exec(text))) {
+    const display = m[1] !== undefined;
+    spans.push({
+      from: m.index,
+      to: m.index + m[0].length,
+      tex: (display ? m[1] : m[2]) ?? "",
+      display,
     });
   }
+  return spans;
+}
+
+function buildDecorations(state: EditorState, docPath: string | null): DecorationSet {
+  const decos: Range<Decoration>[] = [];
+  const sel = state.selection.main;
+  const tree = syntaxTree(state);
+  const doc = state.doc;
+
+  // Math (skip `$` inside code).
+  const math = findMath(state).filter((s) => {
+    let n: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(s.from, 1);
+    while (n) {
+      if (/Code/.test(n.name)) return false;
+      n = n.parent;
+    }
+    return true;
+  });
+  const inMath = (pos: number) => math.some((s) => pos >= s.from && pos < s.to);
+  for (const s of math) {
+    if (overlaps(sel.from, sel.to, s.from, s.to)) continue;
+    const multiline = doc.lineAt(s.from).number !== doc.lineAt(s.to).number;
+    if (multiline) {
+      const from = doc.lineAt(s.from).from;
+      const to = doc.lineAt(s.to).to;
+      decos.push(
+        Decoration.replace({
+          widget: new MathWidget(s.tex.trim(), true),
+          block: true,
+        }).range(from, to),
+      );
+    } else {
+      decos.push(
+        Decoration.replace({
+          widget: new MathWidget(s.tex, s.display),
+        }).range(s.from, s.to),
+      );
+    }
+  }
+
+  tree.iterate({
+    from: 0,
+    to: doc.length,
+    enter: (node) => {
+      const name = node.name;
+      if (inMath(node.from)) return false;
+
+      if (name === "FencedCode") {
+        const first = doc.lineAt(node.from).number;
+        const last = doc.lineAt(node.to).number;
+        const reveal = overlaps(sel.from, sel.to, node.from, node.to);
+        for (let ln = first; ln <= last; ln++) {
+          const cls =
+            "cm-code" +
+            (ln === first ? " cm-code-first" : "") +
+            (ln === last ? " cm-code-last" : "");
+          decos.push(Decoration.line({ class: cls }).range(doc.line(ln).from));
+        }
+        if (!reveal) {
+          // Hide the ``` / language text (same-line replaces only — no block).
+          const openL = doc.line(first);
+          if (openL.length) decos.push(HIDE.range(openL.from, openL.to));
+          if (last !== first) {
+            const closeL = doc.line(last);
+            if (closeL.length) decos.push(HIDE.range(closeL.from, closeL.to));
+          }
+        }
+        return false;
+      }
+
+      if (name === "Link") {
+        if (!overlaps(sel.from, sel.to, node.from, node.to)) {
+          const text = doc.sliceString(node.from, node.to);
+          const m = /^\[([^\]]*)\]\(\s*([^)\s]+)/.exec(text);
+          if (m) {
+            const textStart = node.from + 1;
+            const textEnd = textStart + m[1].length;
+            if (textStart > node.from) decos.push(HIDE.range(node.from, textStart));
+            decos.push(
+              Decoration.mark({
+                class: "cm-link",
+                attributes: { "data-href": m[2] },
+              }).range(textStart, textEnd),
+            );
+            if (textEnd < node.to) decos.push(HIDE.range(textEnd, node.to));
+          }
+        }
+        return false;
+      }
+
+      if (name === "Image") {
+        if (!overlaps(sel.from, sel.to, node.from, node.to)) {
+          const text = doc.sliceString(node.from, node.to);
+          const m = /^!\[([^\]]*)\]\(\s*([^)\s]+)/.exec(text);
+          if (m) {
+            decos.push(
+              Decoration.replace({
+                widget: new ImageWidget(resolveSrc(m[2], docPath), m[1]),
+              }).range(node.from, node.to),
+            );
+          }
+        }
+        return false;
+      }
+
+      if (HEADING_LINE[name]) {
+        decos.push(HEADING_LINE[name].range(doc.lineAt(node.from).from));
+        return;
+      }
+
+      if (CONTENT_MARK[name]) {
+        decos.push(CONTENT_MARK[name].range(node.from, node.to));
+        return;
+      }
+
+      if (MARK_NODES.has(name)) {
+        let cFrom: number;
+        let cTo: number;
+        if (name === "HeaderMark") {
+          cFrom = node.from;
+          cTo = node.to;
+        } else {
+          const parent = node.node.parent;
+          cFrom = parent ? parent.from : node.from;
+          cTo = parent ? parent.to : node.to;
+        }
+        const reveal = overlaps(sel.from, sel.to, cFrom, cTo);
+        if (reveal) {
+          decos.push(FAINT.range(node.from, node.to));
+        } else if (node.to > node.from) {
+          let end = node.to;
+          if (name === "HeaderMark") {
+            const after = doc.sliceString(node.to, node.to + 1);
+            if (after === " ") end = node.to + 1;
+          }
+          decos.push(HIDE.range(node.from, end));
+        }
+      }
+    },
+  });
+
   decos.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide);
   return Decoration.set(decos, true);
 }
 
-export const livePreview = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = buildDecorations(view);
-    }
-    update(u: ViewUpdate) {
-      if (u.docChanged || u.selectionSet || u.viewportChanged) {
-        this.decorations = buildDecorations(u.view);
+/** The live-preview extension, bound to the doc path (for relative images). */
+export function livePreview(docPath: string | null) {
+  return StateField.define<DecorationSet>({
+    create(state) {
+      return buildDecorations(state, docPath);
+    },
+    update(deco, tr) {
+      if (tr.docChanged || tr.selection) {
+        return buildDecorations(tr.state, docPath);
       }
-    }
-  },
-  { decorations: (v) => v.decorations },
-);
+      return deco.map(tr.changes);
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
+}
 
-/**
- * Auto-pair Markdown markers, Typora-style:
- *  - no selection: `$`→`$|$`, `` ` ``→`` `|` ``, `(`,`[`,`{`, cursor between,
- *  - with selection: wrap it — `*`,`_` (emphasis), `~`→`~~sel~~`, `` ` ``, `$`.
- */
+// ---------- Auto-pairing ----------
+
 const PAIR_EMPTY: Record<string, [string, string]> = {
   $: ["$", "$"],
   "`": ["`", "`"],
-  "(": ["(", ")"],
-  "[": ["[", "]"],
-  "{": ["{", "}"],
+  "*": ["*", "*"],
+  _: ["_", "_"],
+  "~": ["~", "~"],
 };
 const WRAP: Record<string, [string, string]> = {
   "*": ["*", "*"],
@@ -135,9 +304,6 @@ const WRAP: Record<string, [string, string]> = {
   "`": ["`", "`"],
   "~": ["~~", "~~"],
   $: ["$", "$"],
-  "(": ["(", ")"],
-  "[": ["[", "]"],
-  "{": ["{", "}"],
 };
 
 export const autoPairMarkers = EditorView.inputHandler.of(
@@ -157,7 +323,6 @@ export const autoPairMarkers = EditorView.inputHandler.of(
       });
       return true;
     }
-    // No selection: only pair the "safe" markers so we don't hijack "* " lists.
     const p = PAIR_EMPTY[text];
     if (!p || from !== to) return false;
     view.dispatch({
@@ -169,7 +334,6 @@ export const autoPairMarkers = EditorView.inputHandler.of(
   },
 );
 
-/** Toggle a wrapping marker around the current selection (for menu/shortcuts). */
 export function wrapSelection(view: EditorView, left: string, right = left) {
   const sel = view.state.selection.main;
   const inner = view.state.sliceDoc(sel.from, sel.to);
@@ -184,7 +348,6 @@ export function wrapSelection(view: EditorView, left: string, right = left) {
   view.focus();
 }
 
-/** Set the current line(s) to a heading level (0 = paragraph). */
 export function setHeading(view: EditorView, level: number) {
   const { state } = view;
   const changes = [];
@@ -200,5 +363,3 @@ export function setHeading(view: EditorView, level: number) {
   view.dispatch({ changes });
   view.focus();
 }
-
-export const editorFontTheme = EditorState.allowMultipleSelections.of(false);

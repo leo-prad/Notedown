@@ -135,7 +135,8 @@ export async function saveImage(
     // Store a path relative to the document.
     return `${folderName}/${filename}`;
   }
-  return target;
+  // Absolute path (unsaved doc): use forward slashes so the Markdown URL is valid.
+  return target.replace(/\\/g, "/");
 }
 
 /** Turn a stored image src into something the webview can render. */
