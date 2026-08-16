@@ -15,3 +15,11 @@ The ribbon is positioned relative and [[toolbar]] is absolutely centered at
 
 Window-caption controls use the native Windows Segoe Fluent / MDL2 icon-font
 glyphs for minimize, maximize, restore, and close.
+
+The settings shell uses the same icon font for its section navigation, while
+setting rows are separated by subtle dividers and controls use compact native
+Windows-style select and switch proportions.
+
+At desktop widths the navigation rail scales to the wider Windows Settings
+proportion. An active item retains regular-weight text and gains a narrow,
+rounded accent indicator on its left edge.

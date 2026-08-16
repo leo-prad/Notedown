@@ -150,13 +150,13 @@ function useMenus(): MItem[][] {
           action: async () => {
             if (!active) return;
             const path = await saveFileDialog(`${active.title}.html`);
-            if (path) await writeText(path, buildHtmlDocument(active.title));
+            if (path) await writeText(path, buildHtmlDocument(active.title, active.content));
           },
         },
         {
           label: "PDF… (via Print)",
           disabled: !active,
-          action: () => active && printDocument(active.title),
+          action: () => active && printDocument(active.title, active.content),
         },
       ],
     },
@@ -164,7 +164,7 @@ function useMenus(): MItem[][] {
       label: "Print…",
       shortcut: "Ctrl+P",
       disabled: !active,
-      action: () => active && printDocument(active.title),
+      action: () => active && printDocument(active.title, active.content),
     },
     { sep: true },
     {
@@ -175,7 +175,7 @@ function useMenus(): MItem[][] {
     {
       label: "Close Tab",
       shortcut: "Ctrl+W",
-      action: () => active && s.closeTab(active.id),
+      action: () => active && s.attemptCloseTab(active.id),
       disabled: !active,
     },
   ];

@@ -11,6 +11,5 @@ level, outside-click closing, and hover-to-switch while a menu is open.
 
 The Format hyperlink actions use `document.execCommand("createLink")`, which
 targets DOM selection rather than the CodeMirror command path and differs from
-the direct Ctrl+K shortcut. File → Close Tab directly calls `closeTab` instead
-of `attemptCloseTab`; it can discard dirty buffers without [[confirm-close]].
-
+the direct Ctrl+K shortcut. File → Close Tab routes through `attemptCloseTab`,
+so dirty buffers receive [[confirm-close]] just like the tab strip and Ctrl+W.

@@ -4,7 +4,7 @@ import { EditorView, keymap, drawSelection, dropCursor } from "@codemirror/view"
 import { history, historyKeymap, defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "katex/dist/katex.min.css";
@@ -85,7 +85,12 @@ export function EditorPane() {
           syntaxHighlighting(highlight),
           livePreview(docPath),
           codeLangCompletion,
-          autoPairMarkers,
+          autoPairMarkers({
+            quotes: settings.autoQuotes,
+            brackets: settings.autoBrackets,
+            markdown: settings.autoMarkdown,
+          }),
+          indentUnit.of(" ".repeat(settings.indentation)),
           formatKeymap,
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           baseTheme,
@@ -121,7 +126,7 @@ export function EditorPane() {
                   const file = it.getAsFile();
                   if (file) {
                     e.preventDefault();
-                    saveImage(file, docPath, folder).then((p) =>
+                    saveImage(file, docPath, folder, settings.imageStrategy).then((p) =>
                       insertImageMarkdown(view, p, ""),
                     );
                     return true;
@@ -137,7 +142,7 @@ export function EditorPane() {
               if (imgs.length === 0) return false;
               e.preventDefault();
               imgs.forEach((f) =>
-                saveImage(f, docPath, folder).then((p) => insertImageMarkdown(view, p, f.name)),
+                saveImage(f, docPath, folder, settings.imageStrategy).then((p) => insertImageMarkdown(view, p, f.name)),
               );
               return true;
             },

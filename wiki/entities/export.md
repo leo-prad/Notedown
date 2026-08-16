@@ -1,12 +1,12 @@
 # Export — `src/lib/export.ts`
 
-This module provides `buildHtmlDocument(title)` and `printDocument(title)`.
-It creates a self-contained HTML document with inline print CSS and prints it
-through a temporary hidden iframe.
+This module converts Markdown source into a self-contained HTML document, then
+uses it for file export and iframe printing. `markdownToHtml` handles headings,
+paragraphs, inline marks, links/images, quotes, ordered/unordered lists, rules,
+fenced code, and simple GFM tables. It escapes text and restricts generated
+link/image URLs to safe local, fragment, HTTP(S), or mailto targets.
 
-**Current state:** `renderedBody` searches for
-`.nd-editor-host .ProseMirror` (`src/lib/export.ts:22`), but the editor is
-CodeMirror. Consequently no document content is found and File → Export HTML
-and Print operate on an empty body. The module needs a Markdown-to-HTML renderer
-or a CodeMirror-compatible rendering source. See [[known-limitations]].
-
+`buildHtmlDocument(title, markdown)` embeds the result with print CSS, while
+`printDocument(title, markdown)` writes it into a temporary hidden iframe then
+opens the system print workflow. [[menu-bar]] and [[app-shell]] pass active-tab
+source explicitly, so export no longer depends on the retired ProseMirror DOM.

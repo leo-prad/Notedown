@@ -27,7 +27,6 @@ Most tab-close paths use `attemptCloseTab` (`src/store.ts:168`), setting
 that request. `closeTab` never leaves the application with zero tabs: removing
 the final tab immediately creates a blank `Untitled-1`.
 
-**Exception:** File → Close Tab in [[menu-bar]] calls `closeTab` directly,
-bypassing the dirty-tab prompt. This is a current bug, recorded in
-[[known-limitations]].
-
+File → Close Tab, tab-strip close actions, and Ctrl+W all route through
+`attemptCloseTab`, so each destructive tab-close path receives the same dirty
+confirmation.

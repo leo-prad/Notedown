@@ -41,3 +41,27 @@ Copied the updated logo into the title-bar asset and regenerated the Tauri Windo
 ## [2026-08-16] edit | Use Windows-native caption glyphs
 Touched: src/components/TitleBar.tsx, src/index.css, wiki/entities/{title-bar,styling}.md, wiki/log.md
 Replaced the custom SVG window-control icons with the Windows ChromeMinimize, ChromeMaximize, ChromeRestore, and ChromeClose glyphs from the Segoe Fluent/MDL2 icon font.
+
+## [2026-08-16] edit | Restyle Settings as Windows-native controls
+Touched: src/components/Settings.tsx, src/index.css, wiki/entities/{settings,styling}.md, wiki/log.md
+Added icon-led settings navigation, accessibility semantics, compact native-style toggles/selects, and divider-separated settings rows.
+
+## [2026-08-16] edit | Add status-bar theme toggle
+Touched: src/components/StatusBar.tsx, src/index.css, wiki/entities/status-bar.md, wiki/log.md
+Added a moon/sun control immediately before the document format button, switching between matching light and dark theme variants.
+
+## [2026-08-16] edit | Match Windows Settings tab selection treatment
+Touched: src/index.css, wiki/entities/{settings,styling}.md, wiki/log.md
+Widened the settings rail responsively and changed active tabs to regular text with a small rounded accent bar on the left; softened the page heading to the same native style.
+
+## [2026-08-16] edit | Update About page for current editor
+Touched: src/components/Settings.tsx, src/index.css, wiki/entities/settings.md, wiki/concepts/known-limitations.md, wiki/log.md
+Replaced the placeholder logo and stale WYSIWYG/Milkdown description with the current Notedown logo and a Tauri, React, and CodeMirror live-preview description.
+
+## [2026-08-16] edit | QA fixes for export and dirty tab close
+Touched: src/lib/export.ts, src/App.tsx, src/components/MenuBar.tsx, wiki/concepts/{known-limitations,session-persistence}.md, wiki/entities/{export,menu-bar}.md, wiki/log.md
+Replaced the retired ProseMirror export path with a source-driven Markdown-to-HTML renderer for HTML export and print. Routed File → Close Tab through the existing dirty-tab confirmation flow.
+
+## [2026-08-16] edit | Make editor and image preferences functional
+Touched: src/lib/livepreview.ts, src/components/{EditorPane,Settings,Toolbar}.tsx, src/lib/tauri.ts, wiki/entities/{editor-pane,settings}.md, wiki/concepts/known-limitations.md, wiki/log.md
+Connected indentation and auto-completion preferences to CodeMirror, including native-style skip-over behavior for existing closers; made image path strategy control generated Markdown references; and replaced inactive AI credential controls with an explicit unavailable state.

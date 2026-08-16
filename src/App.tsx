@@ -104,7 +104,7 @@ export default function App() {
         if (a) s.attemptCloseTab(a.id);
       } else if (ctrl && e.key.toLowerCase() === "p") {
         e.preventDefault();
-        if (a) printDocument(a.title);
+        if (a) printDocument(a.title, a.content);
       } else if (ctrl && e.key === ",") {
         e.preventDefault();
         s.setUI("settingsOpen", true);

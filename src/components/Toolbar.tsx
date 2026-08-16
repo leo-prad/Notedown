@@ -6,7 +6,6 @@ const EMPTY: ActiveFormat = { bold: false, italic: false, strike: false, code: f
 
 export function Toolbar() {
   const active = useStore((s) => s.tabs.find((t) => t.id === s.activeId));
-  const settings = useStore((s) => s.settings);
   const disabled = !active || active.sourceMode;
   const [headingOpen, setHeadingOpen] = useState(false);
   const [fmt, setFmt] = useState<ActiveFormat>(EMPTY);
@@ -94,12 +93,6 @@ export function Toolbar() {
       {btn("Table", false, () => editorCmd.table(), <TableIcon />)}
       {btn("Blockquote", false, () => editorCmd.blockquote(), <span>"</span>)}
       {btn("Code block", false, () => editorCmd.codeBlock(), <CodeIcon />)}
-      {settings.aiEnabled && (
-        <>
-          <span className="nd-tool-sep" />
-          {btn("AI", false, () => focusEditor(), <span className="nd-tool-ai">✦</span>)}
-        </>
-      )}
     </div>
   );
 }

@@ -422,14 +422,14 @@ export function livePreview(docPath: string | null) {
 
 // ---------- Auto-pairing ----------
 
-const PAIR_EMPTY: Record<string, [string, string]> = {
+const MARKER_PAIRS: Record<string, [string, string]> = {
   $: ["$", "$"],
   "`": ["`", "`"],
   "*": ["*", "*"],
   _: ["_", "_"],
   "~": ["~", "~"],
 };
-const WRAP: Record<string, [string, string]> = {
+const MARKER_WRAPS: Record<string, [string, string]> = {
   "*": ["*", "*"],
   _: ["_", "_"],
   "`": ["`", "`"],
@@ -437,11 +437,52 @@ const WRAP: Record<string, [string, string]> = {
   $: ["$", "$"],
 };
 
-export const autoPairMarkers = EditorView.inputHandler.of(
+export interface AutoPairOptions {
+  quotes: boolean;
+  brackets: boolean;
+  markdown: boolean;
+}
+
+/**
+ * Pair only the characters enabled in Settings.  This stays a small input
+ * handler rather than adding a second editor package, because Markdown marker
+ * pairs ($, *, ~, and _) are not handled by CodeMirror's generic close-bracket
+ * extension.
+ */
+export function autoPairMarkers(options: AutoPairOptions) {
+  const pairs: Record<string, [string, string]> = {};
+  const wraps: Record<string, [string, string]> = {};
+  if (options.markdown) Object.assign(pairs, MARKER_PAIRS, wraps, MARKER_WRAPS);
+  if (options.quotes) {
+    const quotePairs = { '"': ['"', '"'], "'": ["'", "'"] } as Record<string, [string, string]>;
+    Object.assign(pairs, quotePairs, wraps, quotePairs);
+  }
+  if (options.brackets) {
+    const bracketPairs = {
+      "(": ["(", ")"],
+      "[": ["[", "]"],
+      "{": ["{", "}"],
+    } as Record<string, [string, string]>;
+    Object.assign(pairs, bracketPairs, wraps, bracketPairs);
+  }
+  const closers = new Set(Object.values(pairs).map(([, close]) => close));
+
+  return EditorView.inputHandler.of(
   (view, from, to, text) => {
     const sel = view.state.selection.main;
+    // When the caret is immediately before an automatically-added closer,
+    // accept the user's closer keystroke by stepping over it.  This mirrors
+    // native text editors and avoids creating a duplicate `)`, `"`, or `*`.
+    if (
+      sel.from === sel.to &&
+      closers.has(text) &&
+      view.state.sliceDoc(from, from + text.length) === text
+    ) {
+      view.dispatch({ selection: { anchor: from + text.length }, userEvent: "input.type" });
+      return true;
+    }
     if (sel.from !== sel.to) {
-      const w = WRAP[text];
+      const w = wraps[text];
       if (!w) return false;
       const inner = view.state.sliceDoc(sel.from, sel.to);
       view.dispatch({
@@ -454,7 +495,7 @@ export const autoPairMarkers = EditorView.inputHandler.of(
       });
       return true;
     }
-    const p = PAIR_EMPTY[text];
+    const p = pairs[text];
     if (!p || from !== to) return false;
     view.dispatch({
       changes: { from, insert: p[0] + p[1] },
@@ -463,7 +504,8 @@ export const autoPairMarkers = EditorView.inputHandler.of(
     });
     return true;
   },
-);
+  );
+}
 
 export function wrapSelection(view: EditorView, left: string, right = left) {
   const sel = view.state.selection.main;

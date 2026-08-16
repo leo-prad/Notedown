@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useStore } from "../store";
-import { DEFAULT_SETTINGS, type Settings as SettingsT, type ThemeName } from "../types";
+import { type Settings as SettingsT, type ThemeName } from "../types";
 
-const SECTIONS = [
-  "General",
-  "Appearance",
-  "Editor",
-  "Image",
-  "AI",
-  "Export",
-  "About",
+const NAV_ITEMS = [
+  { section: "General", icon: "\uE713" },
+  { section: "Appearance", icon: "\uE790" },
+  { section: "Editor", icon: "\uE70F" },
+  { section: "Image", icon: "\uE8B9" },
+  { section: "AI", icon: "✦" },
+  { section: "Export", icon: "\uE8A7" },
+  { section: "About", icon: "\uE946" },
 ] as const;
-type Section = (typeof SECTIONS)[number];
+type Section = (typeof NAV_ITEMS)[number]["section"];
+const APP_VERSION = "0.1.0";
 
 export function Settings() {
   const settings = useStore((s) => s.settings);
@@ -26,17 +27,22 @@ export function Settings() {
     <div className="nd-settings">
       <div className="nd-settings-nav">
         <button className="nd-settings-back" onClick={() => setUI("settingsOpen", false)}>
-          ← Back
+          <span className="nd-settings-back-icon">{"\uE72B"}</span>
+          Back
         </button>
-        {SECTIONS.map((sec) => (
+        <nav className="nd-settings-navlist" aria-label="Settings sections">
+        {NAV_ITEMS.map(({ section: sec, icon }) => (
           <button
             key={sec}
             className={`nd-settings-navitem ${section === sec ? "active" : ""}`}
             onClick={() => setSection(sec)}
+            aria-current={section === sec ? "page" : undefined}
           >
+            <span className="nd-settings-navicon" aria-hidden="true">{icon}</span>
             {sec}
           </button>
         ))}
+        </nav>
       </div>
 
       <div className="nd-settings-content">
@@ -132,37 +138,12 @@ export function Settings() {
         )}
 
         {section === "AI" && (
-          <>
-            <Row title="Enable AI assistant" desc="Adds Milkdown's inline AI (slash '/ai' and toolbar).">
-              <Toggle value={settings.aiEnabled} onChange={(v) => set("aiEnabled", v)} />
-            </Row>
-            <Row title="Provider">
-              <Select
-                value={settings.aiProvider}
-                options={[
-                  ["anthropic", "Anthropic (Claude)"],
-                  ["openai", "OpenAI"],
-                  ["custom", "Custom (OpenAI-compatible)"],
-                ]}
-                onChange={(v) => set("aiProvider", v as SettingsT["aiProvider"])}
-              />
-            </Row>
-            <Row title="API key" desc="Stored locally in your session file.">
-              <input
-                className="nd-text"
-                type="password"
-                value={settings.aiApiKey}
-                onChange={(e) => set("aiApiKey", e.target.value)}
-                placeholder="sk-…"
-              />
-            </Row>
-            <Row title="Model">
-              <input className="nd-text" value={settings.aiModel} onChange={(e) => set("aiModel", e.target.value)} />
-            </Row>
-            <Row title="Base URL" desc="Only for custom / self-hosted endpoints.">
-              <input className="nd-text" value={settings.aiBaseUrl} onChange={(e) => set("aiBaseUrl", e.target.value)} placeholder="https://…" />
-            </Row>
-          </>
+          <Row
+            title="AI assistant"
+            desc="AI actions are not available in this build. Configuration is intentionally disabled until the feature can use your credentials securely."
+          >
+            <span className="nd-status-text">Coming soon</span>
+          </Row>
         )}
 
         {section === "Export" && (
@@ -173,12 +154,13 @@ export function Settings() {
 
         {section === "About" && (
           <div className="nd-about">
-            <div className="nd-about-logo">N</div>
+            <img className="nd-about-logo" src="/logo.png" alt="Notedown" />
             <h2>Notedown</h2>
-            <p>Version {DEFAULT_SETTINGS ? "0.1.0" : ""}</p>
+            <p>Version {APP_VERSION}</p>
             <p className="nd-status-text">
-              A tabbed, WYSIWYG Markdown &amp; text editor with unsaved-session
-              persistence. Built with Tauri + Milkdown.
+              A tabbed Markdown and text editor with a source-first live preview
+              and unsaved-session persistence. Built with Tauri, React, and
+              CodeMirror.
             </p>
           </div>
         )}
@@ -201,7 +183,12 @@ function Row({ title, desc, children }: { title: string; desc?: string; children
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button className={`nd-toggle ${value ? "on" : ""}`} onClick={() => onChange(!value)}>
+    <button
+      className={`nd-toggle ${value ? "on" : ""}`}
+      role="switch"
+      aria-checked={value}
+      onClick={() => onChange(!value)}
+    >
       <span className="nd-toggle-knob" />
     </button>
   );

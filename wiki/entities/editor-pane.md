@@ -14,13 +14,17 @@ rebuilds the editor and also resets its undo history/selection.
 ## Extensions and events
 
 The view uses Markdown/GFM parsing, history, selection/drop cursor, wrapping,
-custom highlighting, [[livepreview]], [[codeblock]], marker pairing, formatting
-keys, default/history keys, and Tab indentation. Font size, line height, and
-content width are CSS variables supplied to the scrolling host.
+custom highlighting, [[livepreview]], [[codeblock]], settings-driven marker
+pairing, formatting keys, default/history keys, and Tab indentation. Font
+size, line height, and content width are CSS variables supplied to the
+scrolling host. The configured indentation width becomes CodeMirror's
+`indentUnit`; quote, bracket, and Markdown-marker pairing extensions are
+rebuilt whenever their settings change.
 
 The DOM handler opens rendered links on click and bare URLs on Ctrl/Cmd-click.
 Paste/drop detects image files, calls `saveImage` from [[lib-tauri]], and
-inserts image Markdown when saving resolves. Multiple dropped images insert at
-the same original cursor position, so asynchronous completion can reverse their
+inserts image Markdown when saving resolves. The image strategy chooses a
+relative reference for saved documents (`copy-local`) or an absolute reference
+to the managed asset (`keep-absolute`). Multiple dropped images insert at the
+same original cursor position, so asynchronous completion can reverse their
 apparent order.
-

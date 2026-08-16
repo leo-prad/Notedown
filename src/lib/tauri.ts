@@ -116,6 +116,7 @@ export async function saveImage(
   file: File,
   docPath: string | null,
   folderName: string,
+  strategy: "copy-local" | "keep-absolute" = "copy-local",
 ): Promise<string> {
   const ext = extFromFile(file);
   const base = (file.name.replace(/\.[^.]+$/, "") || "image")
@@ -131,11 +132,12 @@ export async function saveImage(
   const bytes = new Uint8Array(await file.arrayBuffer());
   await writeBinary(target, bytes);
 
-  if (docPath) {
+  if (docPath && strategy === "copy-local") {
     // Store a path relative to the document.
     return `${folderName}/${filename}`;
   }
-  // Absolute path (unsaved doc): use forward slashes so the Markdown URL is valid.
+  // Absolute paths (either explicitly chosen or required for an untitled doc)
+  // use forward slashes so they remain valid Markdown destinations.
   return target.replace(/\\/g, "/");
 }
 
