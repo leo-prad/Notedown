@@ -233,6 +233,28 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
         return false;
       }
 
+      if (name === "Blockquote") {
+        const first = doc.lineAt(node.from).number;
+        const last = doc.lineAt(node.to > node.from ? node.to - 1 : node.to).number;
+        for (let ln = first; ln <= last; ln++) {
+          decos.push(Decoration.line({ class: "cm-quote" }).range(doc.line(ln).from));
+        }
+        return;
+      }
+
+      if (name === "QuoteMark") {
+        const line = doc.lineAt(node.from);
+        const caretOnLine = overlaps(sel.from, sel.to, line.from, line.to);
+        if (caretOnLine) {
+          decos.push(FAINT.range(node.from, node.to));
+        } else {
+          let end = node.to;
+          if (doc.sliceString(node.to, node.to + 1) === " ") end = node.to + 1;
+          decos.push(HIDE.range(node.from, end));
+        }
+        return;
+      }
+
       if (HEADING_LINE[name]) {
         decos.push(HEADING_LINE[name].range(doc.lineAt(node.from).from));
         return;

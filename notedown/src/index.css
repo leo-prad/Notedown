@@ -592,6 +592,14 @@ button {
   margin: 10px 0;
 }
 
+/* Blockquote */
+.cm-quote {
+  border-left: 3px solid var(--nd-accent);
+  padding-left: 14px !important;
+  color: var(--nd-text-dim);
+  font-style: italic;
+}
+
 /* Fenced code box */
 .cm-code {
   background: var(--nd-surface-2);
