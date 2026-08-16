@@ -97,11 +97,15 @@ class CopyButtonWidget extends WidgetType {
     return true;
   }
   toDOM() {
+    const COPY_SVG =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+    const CHECK_SVG =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
     const btn = document.createElement("button");
     btn.className = "cm-code-copy";
     btn.type = "button";
     btn.title = "Copy code";
-    btn.textContent = "Copy";
+    btn.innerHTML = COPY_SVG;
     btn.setAttribute("contenteditable", "false");
     // Don't let the click move the editor caret.
     btn.addEventListener("mousedown", (e) => e.preventDefault());
@@ -110,10 +114,10 @@ class CopyButtonWidget extends WidgetType {
       e.stopPropagation();
       navigator.clipboard.writeText(this.code).then(
         () => {
-          btn.textContent = "Copied";
+          btn.innerHTML = CHECK_SVG;
           btn.classList.add("cm-code-copied");
           setTimeout(() => {
-            btn.textContent = "Copy";
+            btn.innerHTML = COPY_SVG;
             btn.classList.remove("cm-code-copied");
           }, 1200);
         },
@@ -175,6 +179,17 @@ function findMath(state: EditorState): MathSpan[] {
 }
 
 function buildDecorations(state: EditorState, docPath: string | null): DecorationSet {
+  // Safety net: a decoration error (e.g. an unexpected overlap) must never blank
+  // the editor. On failure we fall back to no decorations — plain, editable text.
+  try {
+    return buildDecorationsUnsafe(state, docPath);
+  } catch (e) {
+    console.error("livePreview: buildDecorations failed, rendering plain", e);
+    return Decoration.none;
+  }
+}
+
+function buildDecorationsUnsafe(state: EditorState, docPath: string | null): DecorationSet {
   const decos: Range<Decoration>[] = [];
   const sel = state.selection.main;
   const tree = syntaxTree(state);
@@ -197,7 +212,11 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
 
   // Math (skip anything overlapping a code region).
   const math = findMath(state).filter((s) => !touchesCode(s.from, s.to));
-  const inMath = (pos: number) => math.some((s) => pos >= s.from && pos < s.to);
+  // A node is math-internal only if it is FULLY inside a math span. Never prune a
+  // container (e.g. a Paragraph) that merely starts at a math span — its later
+  // children (links, emphasis) must still be decorated.
+  const nodeInMath = (from: number, to: number) =>
+    math.some((s) => from >= s.from && to <= s.to);
   for (const s of math) {
     if (overlaps(sel.from, sel.to, s.from, s.to)) continue;
     const multiline = doc.lineAt(s.from).number !== doc.lineAt(s.to).number;
@@ -227,7 +246,7 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
   while ((um = URL_RE.exec(text))) {
     const from = um.index;
     const to = from + um[0].length;
-    if (inMath(from)) continue;
+    if (nodeInMath(from, to)) continue;
     let inside = false;
     let n: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(from, 1);
     while (n) {
@@ -252,7 +271,7 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
     to: doc.length,
     enter: (node) => {
       const name = node.name;
-      if (inMath(node.from)) return false;
+      if (nodeInMath(node.from, node.to)) return false;
 
       if (name === "FencedCode") {
         const first = doc.lineAt(node.from).number;

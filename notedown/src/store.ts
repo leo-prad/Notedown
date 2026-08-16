@@ -61,13 +61,18 @@ interface Store {
   /** Bumped to force the editor to remount (theme/font/source-mode changes). */
   editorEpoch: number;
   ready: boolean;
+  /** Tab id awaiting an unsaved-changes close confirmation, if any. */
+  confirmCloseId: string | null;
 
   init: () => Promise<void>;
   newTab: (format?: FileFormat) => void;
   openDialog: () => Promise<void>;
   openPaths: (paths: string[]) => Promise<void>;
   setActive: (id: string) => void;
+  /** Close, but if the tab has unsaved changes, ask first (sets confirmCloseId). */
+  attemptCloseTab: (id: string) => void;
   closeTab: (id: string) => void;
+  cancelClose: () => void;
   moveTab: (fromId: string, toId: string) => void;
   updateContent: (id: string, content: string) => void;
   setFormat: (id: string, format: FileFormat) => void;
@@ -100,6 +105,7 @@ export const useStore = create<Store>((set, get) => ({
   },
   editorEpoch: 0,
   ready: false,
+  confirmCloseId: null,
 
   init: async () => {
     const session = await loadSession();
@@ -167,21 +173,34 @@ export const useStore = create<Store>((set, get) => ({
 
   setActive: (id) => set({ activeId: id }),
 
+  attemptCloseTab: (id) => {
+    const tab = get().tabs.find((t) => t.id === id);
+    if (!tab) return;
+    if (isDirty(tab)) {
+      set({ confirmCloseId: id });
+      return;
+    }
+    get().closeTab(id);
+  },
+
+  cancelClose: () => set({ confirmCloseId: null }),
+
   closeTab: (id) => {
-    const { tabs, activeId } = get();
+    const { tabs, activeId, confirmCloseId } = get();
     const idx = tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
+    const clearConfirm = confirmCloseId === id ? { confirmCloseId: null } : {};
     const newTabs = tabs.filter((t) => t.id !== id);
     if (newTabs.length === 0) {
       const tab = makeTab({ content: "", title: "Untitled-1" });
-      set({ tabs: [tab], activeId: tab.id });
+      set({ tabs: [tab], activeId: tab.id, ...clearConfirm });
       return;
     }
     let newActive = activeId;
     if (activeId === id) {
       newActive = (newTabs[idx] ?? newTabs[idx - 1] ?? newTabs[0]).id;
     }
-    set({ tabs: newTabs, activeId: newActive });
+    set({ tabs: newTabs, activeId: newActive, ...clearConfirm });
   },
 
   moveTab: (fromId, toId) => {

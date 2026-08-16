@@ -20,7 +20,7 @@ export function TitleBar() {
 
   return (
     <div className="nd-titlebar" data-tauri-drag-region>
-      <div className="nd-appicon">N</div>
+      <img className="nd-appicon" src="/logo.png" alt="Notedown" draggable={false} />
       <TabBar />
       <div className="nd-title-spacer" data-tauri-drag-region />
       <div className="nd-title-actions">

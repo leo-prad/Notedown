@@ -14,6 +14,7 @@ import { Sidebar } from "./components/Sidebar";
 import { FindReplace } from "./components/FindReplace";
 import { Settings } from "./components/Settings";
 import { ContextMenu, type CtxState } from "./components/ContextMenu";
+import { ConfirmClose } from "./components/ConfirmClose";
 import { printDocument } from "./lib/export";
 import "./index.css";
 
@@ -82,7 +83,11 @@ export default function App() {
       const a = s.tabs.find((t) => t.id === s.activeId);
       const ctrl = e.ctrlKey || e.metaKey;
 
-      if (ctrl && !e.shiftKey && e.key.toLowerCase() === "n") {
+      if (
+        ctrl &&
+        !e.shiftKey &&
+        (e.key.toLowerCase() === "n" || e.key.toLowerCase() === "t")
+      ) {
         e.preventDefault();
         s.newTab();
       } else if (ctrl && e.key.toLowerCase() === "o") {
@@ -96,7 +101,7 @@ export default function App() {
         s.saveActive();
       } else if (ctrl && e.key.toLowerCase() === "w") {
         e.preventDefault();
-        if (a) s.closeTab(a.id);
+        if (a) s.attemptCloseTab(a.id);
       } else if (ctrl && e.key.toLowerCase() === "p") {
         e.preventDefault();
         if (a) printDocument(a.title);
@@ -214,6 +219,7 @@ export default function App() {
       {ctx && (
         <ContextMenu x={ctx.x} y={ctx.y} onClose={() => setCtx(null)} />
       )}
+      <ConfirmClose />
     </div>
   );
 }

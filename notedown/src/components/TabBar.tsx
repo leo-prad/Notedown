@@ -5,7 +5,7 @@ export function TabBar() {
   const tabs = useStore((s) => s.tabs);
   const activeId = useStore((s) => s.activeId);
   const setActive = useStore((s) => s.setActive);
-  const closeTab = useStore((s) => s.closeTab);
+  const closeTab = useStore((s) => s.attemptCloseTab);
   const newTab = useStore((s) => s.newTab);
   const moveTab = useStore((s) => s.moveTab);
   const renameTab = useStore((s) => s.renameTab);

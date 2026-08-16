@@ -75,7 +75,8 @@ button {
   color: inherit;
   background: none;
   border: none;
-  cursor: pointer;
+  /* Native Windows apps use the arrow for buttons; the hand is only for links. */
+  cursor: default;
 }
 
 .nd-boot {
@@ -143,13 +144,10 @@ button {
   width: 22px;
   height: 22px;
   border-radius: 5px;
-  background: var(--nd-accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  display: grid;
-  place-items: center;
+  object-fit: contain;
   flex-shrink: 0;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .nd-title-spacer {
@@ -634,17 +632,19 @@ button {
   top: 6px;
   right: 8px;
   z-index: 2;
-  font-family: var(--nd-font);
-  font-size: 11px;
-  line-height: 1;
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   border: 1px solid var(--nd-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--nd-surface);
   color: var(--nd-text-dim);
-  cursor: pointer;
+  cursor: default;
   opacity: 0;
-  transition: opacity 0.12s ease, color 0.12s ease;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .cm-code-first:hover .cm-code-copy,
 .cm-code-copy:focus {
@@ -658,6 +658,68 @@ button {
   opacity: 1 !important;
   color: var(--nd-accent);
   border-color: var(--nd-accent);
+}
+
+/* Unsaved-changes close confirmation modal */
+.nd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nd-modal {
+  width: 380px;
+  max-width: calc(100vw - 40px);
+  background: var(--nd-surface);
+  color: var(--nd-text);
+  border: 1px solid var(--nd-border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+  padding: 20px 22px 16px;
+  font-family: var(--nd-font);
+}
+.nd-modal-title {
+  font-size: 15px;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+.nd-modal-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--nd-text-dim);
+  margin-bottom: 18px;
+}
+.nd-modal-body strong {
+  color: var(--nd-text);
+}
+.nd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.nd-btn {
+  font-family: var(--nd-font);
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid var(--nd-border);
+  border-radius: 6px;
+  background: var(--nd-surface);
+  color: var(--nd-text);
+  cursor: default;
+}
+.nd-btn:hover {
+  border-color: var(--nd-accent);
+}
+.nd-btn-primary {
+  background: var(--nd-accent);
+  border-color: var(--nd-accent);
+  color: #fff;
+}
+.nd-btn-primary:hover {
+  filter: brightness(1.05);
 }
 
 /* Bare (unbracketed) URLs — clickable with Ctrl, no spellcheck squiggle. */
