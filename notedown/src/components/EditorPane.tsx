@@ -10,7 +10,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import "katex/dist/katex.min.css";
 import { useStore } from "../store";
 import { setCurrentEditor } from "../lib/editor";
-import { livePreview, autoPairMarkers, wrapSelection } from "../lib/livepreview";
+import { livePreview, autoPairMarkers, wrapSelection, makeLink } from "../lib/livepreview";
+import { codeLangCompletion } from "../lib/codeblock";
 import { saveImage } from "../lib/tauri";
 
 const formatKeymap = keymap.of([
@@ -19,6 +20,7 @@ const formatKeymap = keymap.of([
   { key: "Mod-u", run: (v) => (wrapSelection(v, "<u>", "</u>"), true) },
   { key: "Mod-Shift-x", run: (v) => (wrapSelection(v, "~~"), true) },
   { key: "Mod-`", run: (v) => (wrapSelection(v, "`"), true) },
+  { key: "Mod-k", run: (v) => (makeLink(v), true) },
 ]);
 
 const highlight = HighlightStyle.define([
@@ -82,6 +84,7 @@ export function EditorPane() {
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(highlight),
           livePreview(docPath),
+          codeLangCompletion,
           autoPairMarkers,
           formatKeymap,
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -97,11 +100,15 @@ export function EditorPane() {
           EditorView.domEventHandlers({
             mousedown(e) {
               const el = (e.target as HTMLElement)?.closest?.("[data-href]");
-              if (el && (e.ctrlKey || e.metaKey)) {
+              if (!el) return false;
+              // Rendered markdown links open on plain click; bare URLs need
+              // Ctrl/Cmd (so their text stays editable with a normal click).
+              const isRendered = el.classList.contains("cm-link");
+              if (isRendered || e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 let href = el.getAttribute("data-href") || "";
                 if (href && !/^[a-z]+:/i.test(href)) href = "https://" + href;
-                openUrl(href).catch(() => {});
+                openUrl(href).catch((err) => console.error("openUrl failed", err));
                 return true;
               }
               return false;

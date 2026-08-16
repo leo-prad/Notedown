@@ -86,6 +86,44 @@ class MathWidget extends WidgetType {
   }
 }
 
+class CopyButtonWidget extends WidgetType {
+  constructor(readonly code: string) {
+    super();
+  }
+  eq(o: CopyButtonWidget) {
+    return o.code === this.code;
+  }
+  ignoreEvent() {
+    return true;
+  }
+  toDOM() {
+    const btn = document.createElement("button");
+    btn.className = "cm-code-copy";
+    btn.type = "button";
+    btn.title = "Copy code";
+    btn.textContent = "Copy";
+    btn.setAttribute("contenteditable", "false");
+    // Don't let the click move the editor caret.
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      navigator.clipboard.writeText(this.code).then(
+        () => {
+          btn.textContent = "Copied";
+          btn.classList.add("cm-code-copied");
+          setTimeout(() => {
+            btn.textContent = "Copy";
+            btn.classList.remove("cm-code-copied");
+          }, 1200);
+        },
+        () => {},
+      );
+    });
+    return btn;
+  }
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
@@ -114,6 +152,11 @@ interface MathSpan {
 
 const MATH_RE = /\$\$([^$]+?)\$\$|\$(?!\s)((?:[^$\n]|\\\$)+?)(?<!\s)\$/g;
 
+// Bare URLs: full http(s) links, or www./domain.tld forms. Trailing punctuation
+// is trimmed via the lookahead-friendly char class.
+const URL_RE =
+  /\b(?:https?:\/\/|www\.)[^\s<>()]+[^\s<>().,;:!?'"]|(?:[a-z0-9-]+\.)+(?:com|org|net|io|dev|co|edu|gov|app|ai)\b(?:\/[^\s<>()]*[^\s<>().,;:!?'"])?/gi;
+
 function findMath(state: EditorState): MathSpan[] {
   const spans: MathSpan[] = [];
   const text = state.doc.toString();
@@ -137,15 +180,23 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
   const tree = syntaxTree(state);
   const doc = state.doc;
 
-  // Math (skip `$` inside code).
-  const math = findMath(state).filter((s) => {
-    let n: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(s.from, 1);
-    while (n) {
-      if (/Code/.test(n.name)) return false;
-      n = n.parent;
-    }
-    return true;
+  // Collect code regions (fenced + inline) up front so math can never straddle
+  // or sit inside them — a stray `$` next to a code block must not swallow it.
+  const codeRanges: Array<[number, number]> = [];
+  tree.iterate({
+    from: 0,
+    to: doc.length,
+    enter: (n) => {
+      if (n.name === "FencedCode" || n.name === "InlineCode") {
+        codeRanges.push([n.from, n.to]);
+      }
+    },
   });
+  const touchesCode = (from: number, to: number) =>
+    codeRanges.some(([cf, ct]) => overlaps(from, to, cf, ct));
+
+  // Math (skip anything overlapping a code region).
+  const math = findMath(state).filter((s) => !touchesCode(s.from, s.to));
   const inMath = (pos: number) => math.some((s) => pos >= s.from && pos < s.to);
   for (const s of math) {
     if (overlaps(sel.from, sel.to, s.from, s.to)) continue;
@@ -168,6 +219,34 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
     }
   }
 
+  // Bare URLs (not inside a markdown link/image/code): make them clickable and
+  // exempt from spellcheck. Plain http(s):// or www./domain.tld forms.
+  const text = doc.toString();
+  URL_RE.lastIndex = 0;
+  let um: RegExpExecArray | null;
+  while ((um = URL_RE.exec(text))) {
+    const from = um.index;
+    const to = from + um[0].length;
+    if (inMath(from)) continue;
+    let inside = false;
+    let n: ReturnType<typeof tree.resolveInner> | null = tree.resolveInner(from, 1);
+    while (n) {
+      if (/Link|Image|Code|URL|Autolink/.test(n.name)) {
+        inside = true;
+        break;
+      }
+      n = n.parent;
+    }
+    if (inside) continue;
+    const href = /^https?:\/\//i.test(um[0]) ? um[0] : "https://" + um[0];
+    decos.push(
+      Decoration.mark({
+        class: "cm-url",
+        attributes: { "data-href": href, spellcheck: "false" },
+      }).range(from, to),
+    );
+  }
+
   tree.iterate({
     from: 0,
     to: doc.length,
@@ -186,6 +265,17 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
             (ln === last ? " cm-code-last" : "");
           decos.push(Decoration.line({ class: cls }).range(doc.line(ln).from));
         }
+        // Copy button, pinned to the top-right of the box (positioned via CSS).
+        const codeText =
+          last > first + 1
+            ? doc.sliceString(doc.line(first + 1).from, doc.line(last - 1).to)
+            : "";
+        decos.push(
+          Decoration.widget({
+            widget: new CopyButtonWidget(codeText),
+            side: -1,
+          }).range(doc.line(first).from),
+        );
         if (!reveal) {
           // Hide the ``` / language text (same-line replaces only — no block).
           const openL = doc.line(first);
@@ -209,7 +299,7 @@ function buildDecorations(state: EditorState, docPath: string | null): Decoratio
             decos.push(
               Decoration.mark({
                 class: "cm-link",
-                attributes: { "data-href": m[2] },
+                attributes: { "data-href": m[2], spellcheck: "false" },
               }).range(textStart, textEnd),
             );
             if (textEnd < node.to) decos.push(HIDE.range(textEnd, node.to));
@@ -365,6 +455,38 @@ export function wrapSelection(view: EditorView, left: string, right = left) {
       anchor: sel.from + left.length,
       head: sel.from + left.length + inner.length,
     },
+    userEvent: "input",
+  });
+  view.focus();
+}
+
+/** Ctrl+K: wrap the selection as a markdown link (or insert an empty one). */
+export function makeLink(view: EditorView) {
+  const sel = view.state.selection.main;
+  const raw = view.state.sliceDoc(sel.from, sel.to).trim();
+  const urlLike = /^(https?:\/\/|www\.|(?:[a-z0-9-]+\.)+[a-z]{2,})[^\s]*$/i.test(raw);
+
+  let insert: string;
+  let anchor: number;
+  let head: number;
+  if (!raw) {
+    // Empty: [](  ) with caret between the brackets to type the label.
+    insert = "[]()";
+    anchor = head = sel.from + 1;
+  } else if (urlLike) {
+    // Selection is a URL: use it as href, select the label text to rename it.
+    const url = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+    insert = `[${raw}](${url})`;
+    anchor = sel.from + 1;
+    head = sel.from + 1 + raw.length;
+  } else {
+    // Selection is label text: put caret inside the empty () for the URL.
+    insert = `[${raw}]()`;
+    anchor = head = sel.from + raw.length + 3;
+  }
+  view.dispatch({
+    changes: { from: sel.from, to: sel.to, insert },
+    selection: { anchor, head },
     userEvent: "input",
   });
   view.focus();

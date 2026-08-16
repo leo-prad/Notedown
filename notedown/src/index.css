@@ -625,6 +625,75 @@ button {
 .cm-code-empty {
   min-height: 2.4em;
 }
+.cm-code-first {
+  position: relative;
+}
+/* Copy button, pinned to the code box's top-right corner. */
+.cm-code-copy {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  font-family: var(--nd-font);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--nd-border);
+  border-radius: 5px;
+  background: var(--nd-surface);
+  color: var(--nd-text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.cm-code-first:hover .cm-code-copy,
+.cm-code-copy:focus {
+  opacity: 1;
+}
+.cm-code-copy:hover {
+  color: var(--nd-text);
+  border-color: var(--nd-accent);
+}
+.cm-code-copied {
+  opacity: 1 !important;
+  color: var(--nd-accent);
+  border-color: var(--nd-accent);
+}
+
+/* Bare (unbracketed) URLs — clickable with Ctrl, no spellcheck squiggle. */
+.cm-url {
+  color: var(--nd-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
+/* Language autocomplete dropdown (native-ish, waterfall look). */
+.cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--nd-border);
+  border-radius: 8px;
+  background: var(--nd-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  padding: 4px;
+}
+.cm-tooltip-autocomplete > ul {
+  font-family: var(--nd-font);
+  max-height: 15em;
+}
+.cm-tooltip-autocomplete > ul > li {
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--nd-text);
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--nd-accent);
+  color: #fff;
+}
+.cm-tooltip-autocomplete .cm-completionLabel,
+.cm-tooltip-autocomplete .cm-completionDetail {
+  font-family: var(--nd-font);
+}
 .cmt-kw { color: var(--code-kw); }
 .cmt-str { color: var(--code-str); }
 .cmt-num { color: var(--code-num); }
