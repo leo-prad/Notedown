@@ -10,3 +10,8 @@ It also defines the CodeMirror live-preview presentation classes emitted by
 quotes, code boxes and copy button, bare URLs, autocomplete, and syntax colors.
 The editor pane supplies font/line-height/content-width custom properties.
 
+The ribbon is positioned relative and [[toolbar]] is absolutely centered at
+50% of the viewport; the menu bar remains in normal flow on the left.
+
+Window-caption controls use the native Windows Segoe Fluent / MDL2 icon-font
+glyphs for minimize, maximize, restore, and close.

@@ -29,3 +29,15 @@ Added fenced-code language autocomplete (codeblock.ts) + an icon copy button. Fi
 ## [2026-08-16] edit | Rebuild code wiki against repository root
 Touched: wiki/index.md, wiki/concepts/*, wiki/entities/*, wiki/log.md
 Reconciled every wiki page with the current root-level Tauri + React + CodeMirror codebase and added pages for every active UI, library, type, styling, and configuration module. Documented checked-in migration gaps (legacy Crepe theme/AI/export paths, inactive settings, and the File-menu dirty-close bypass) as limitations rather than treating them as implemented features.
+
+## [2026-08-16] edit | Center ribbon toolbar
+Touched: src/App.tsx, src/index.css, wiki/entities/{app-shell,styling}.md, wiki/log.md
+Removed the flex spacer and positioned the formatting toolbar at the ribbon's viewport midpoint, leaving the menu bar anchored to the left.
+
+## [2026-08-16] edit | Refresh application logo assets
+Touched: Notedown Logo.png, public/logo.png, src-tauri/icons/*, wiki/entities/title-bar.md, wiki/log.md
+Copied the updated logo into the title-bar asset and regenerated the Tauri Windows, macOS, iOS, and Android bundle icons from it.
+
+## [2026-08-16] edit | Use Windows-native caption glyphs
+Touched: src/components/TitleBar.tsx, src/index.css, wiki/entities/{title-bar,styling}.md, wiki/log.md
+Replaced the custom SVG window-control icons with the Windows ChromeMinimize, ChromeMaximize, ChromeRestore, and ChromeClose glyphs from the Segoe Fluent/MDL2 icon font.

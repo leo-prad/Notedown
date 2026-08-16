@@ -33,30 +33,19 @@ export function TitleBar() {
         </button>
         <div className="nd-win-controls">
           <button className="nd-win-btn" title="Minimize" onClick={() => appWindow.minimize()}>
-            <svg width="10" height="10" viewBox="0 0 10 10">
-              <rect x="0" y="4.5" width="10" height="1" fill="currentColor" />
-            </svg>
+            <span className="nd-win-glyph">{"\uE921"}</span>
           </button>
           <button
             className="nd-win-btn"
             title={maximized ? "Restore" : "Maximize"}
             onClick={() => appWindow.toggleMaximize()}
           >
-            {maximized ? (
-              <svg width="10" height="10" viewBox="0 0 10 10">
-                <rect x="0" y="2" width="6" height="6" fill="none" stroke="currentColor" strokeWidth="1" />
-                <rect x="2" y="0" width="6" height="6" fill="none" stroke="currentColor" strokeWidth="1" />
-              </svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 10 10">
-                <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" />
-              </svg>
-            )}
+            <span className="nd-win-glyph">
+              {maximized ? "\uE923" : "\uE922"}
+            </span>
           </button>
           <button className="nd-win-btn nd-win-close" title="Close" onClick={() => appWindow.close()}>
-            <svg width="10" height="10" viewBox="0 0 10 10">
-              <path d="M0,0 L10,10 M10,0 L0,10" stroke="currentColor" strokeWidth="1" />
-            </svg>
+            <span className="nd-win-glyph">{"\uE8BB"}</span>
           </button>
         </div>
       </div>

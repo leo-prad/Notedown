@@ -199,7 +199,6 @@ export default function App() {
         <>
           <div className="nd-ribbon">
             <MenuBar />
-            <div className="nd-ribbon-spacer" />
             <Toolbar />
           </div>
           <div className="nd-body">

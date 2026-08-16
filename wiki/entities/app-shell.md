@@ -19,7 +19,6 @@ effects.
 - Shows the custom [[context-menu]] outside native inputs and implements focus
   mode by adding `.nd-focus-line` to the selected top-level CodeMirror DOM node.
 
-It renders [[title-bar]], [[menu-bar]], [[toolbar]], [[sidebar]],
+It renders [[title-bar]], [[menu-bar]], a viewport-centered [[toolbar]], [[sidebar]],
 [[editor-pane]] or [[source-view]], [[find-replace]], [[status-bar]],
 [[settings]], and [[confirm-close]].
-

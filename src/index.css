@@ -185,6 +185,13 @@ button {
   place-items: center;
   color: var(--nd-text);
 }
+.nd-win-glyph {
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
 .nd-win-btn:hover {
   background: var(--nd-hover);
 }
@@ -279,14 +286,12 @@ button {
 .nd-ribbon {
   display: flex;
   align-items: center;
+  position: relative;
   background: var(--nd-chrome);
   height: 40px;
   padding: 0 6px;
   border-top: 1px solid var(--nd-border);
   border-bottom: 1px solid var(--nd-border);
-}
-.nd-ribbon-spacer {
-  flex: 1;
 }
 
 .nd-menus {
@@ -383,6 +388,9 @@ button {
   display: flex;
   align-items: center;
   gap: 1px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .nd-tool-group {
   position: relative;
