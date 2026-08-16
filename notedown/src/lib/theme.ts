@@ -64,7 +64,7 @@ export function applyTheme(theme: ThemeName, accent: string) {
   }
 
   const dark = isDarkTheme(theme);
-  const bg = dark ? "#202020" : "#fffff5";
+  const bg = dark ? "#202020" : "#fffffd";
   const fg = dark ? "#e6e6e6" : "#1b1b1b";
   overrideEl.textContent = `.milkdown{
     --crepe-font-title: ${UI_FONT};
@@ -72,7 +72,11 @@ export function applyTheme(theme: ThemeName, accent: string) {
     --crepe-font-code: ${CODE_FONT};
     --crepe-color-background: ${bg};
     --crepe-color-on-background: ${fg};
-  }`;
+  }
+  .milkdown .ProseMirror h1{font-weight:800;letter-spacing:-0.01em;}
+  .milkdown .ProseMirror h2{font-weight:750;letter-spacing:-0.01em;}
+  .milkdown .ProseMirror h3{font-weight:700;}
+  .milkdown .ProseMirror h4,.milkdown .ProseMirror h5,.milkdown .ProseMirror h6{font-weight:650;}`;
 
   const root = document.documentElement;
   root.dataset.theme = dark ? "dark" : "light";

@@ -63,6 +63,7 @@ function Dropdown({ items, onClose }: { items: MItem[]; onClose: () => void }) {
             className="nd-menu-item has-sub"
             onMouseEnter={() => setOpenSub(idx)}
           >
+            <span className="nd-menu-check" />
             <span className="nd-menu-label">{it.label}</span>
             <span className="nd-menu-arrow">›</span>
             {openSub === idx && (
