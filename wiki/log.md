@@ -69,3 +69,7 @@ Connected indentation and auto-completion preferences to CodeMirror, including n
 ## [2026-08-16] edit | Configure Windows release bundles and file associations
 Touched: src-tauri/tauri.conf.json, wiki/concepts/{windows-shell-integration,known-limitations}.md, wiki/log.md
 Configured the NSIS release target, bundle metadata, local Node build commands, and Windows associations for Markdown and text documents. Document content thumbnails remain a separate native shell-extension requirement.
+
+## [2026-08-16] edit | Improve live-preview editing controls
+Touched: src/lib/{codeblock,livepreview}.ts, src/components/EditorPane.tsx, src/index.css, wiki/concepts/live-preview.md, wiki/entities/{codeblock,styling}.md, wiki/log.md
+Added symbols to every code-language completion, made code-copy reveal across each whole code block, stabilized empty multiline display math with a visible empty-formula state, added a seven-action image ribbon with persisted alignment, and restyled scrollbars for light and dark themes.

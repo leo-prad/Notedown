@@ -4,7 +4,7 @@ import { EditorView, keymap, drawSelection, dropCursor } from "@codemirror/view"
 import { history, historyKeymap, defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "katex/dist/katex.min.css";
@@ -72,6 +72,20 @@ export function EditorPane() {
       view.dispatch({ changes: { from: pos, insert: `![${alt}](${path})` } });
     };
 
+    const imageMarkup = (view: EditorView, target: HTMLElement) => {
+      const wrap = target.closest<HTMLElement>(".cm-image-wrap");
+      if (!wrap) return null;
+      let node: ReturnType<ReturnType<typeof syntaxTree>["resolve"]> | null =
+        syntaxTree(view.state).resolve(view.posAtDOM(wrap), 1);
+      while (node && node.name !== "Image") node = node.parent;
+      if (!node) return null;
+      const raw = view.state.sliceDoc(node.from, node.to);
+      const match = /^!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"notedown-align:(left|center|right|inline)")?\s*\)$/.exec(raw);
+      return match
+        ? { from: node.from, to: node.to, raw, alt: match[1], src: match[2], align: match[3] ?? "inline" }
+        : null;
+    };
+
     const view = new EditorView({
       parent: host,
       state: EditorState.create({
@@ -103,8 +117,26 @@ export function EditorPane() {
             }
           }),
           EditorView.domEventHandlers({
+            mousemove(e, view) {
+              const target = e.target as HTMLElement;
+              const line = target.closest<HTMLElement>(".cm-line.cm-code");
+              view.dom.querySelectorAll(".cm-code-copy.cm-code-hover").forEach((button) =>
+                button.classList.remove("cm-code-hover"),
+              );
+              if (line) {
+                let first = line;
+                while (first.previousElementSibling?.classList.contains("cm-code")) {
+                  first = first.previousElementSibling as HTMLElement;
+                }
+                first.querySelector<HTMLElement>(".cm-code-copy")?.classList.add("cm-code-hover");
+              }
+              return false;
+            },
             mousedown(e) {
-              const el = (e.target as HTMLElement)?.closest?.("[data-href]");
+              const target = e.target as HTMLElement;
+              const wrap = target.closest<HTMLElement>(".cm-image-wrap");
+              if (wrap) wrap.classList.add("cm-image-selected");
+              const el = target.closest?.("[data-href]");
               if (!el) return false;
               // Rendered markdown links open on plain click; bare URLs need
               // Ctrl/Cmd (so their text stays editable with a normal click).
@@ -114,6 +146,36 @@ export function EditorPane() {
                 let href = el.getAttribute("data-href") || "";
                 if (href && !/^[a-z]+:/i.test(href)) href = "https://" + href;
                 openUrl(href).catch((err) => console.error("openUrl failed", err));
+                return true;
+              }
+              return false;
+            },
+            click(e, view) {
+              const target = e.target as HTMLElement;
+              const action = target.closest<HTMLElement>("[data-image-command]")?.dataset.imageCommand;
+              if (!action) return false;
+              const image = imageMarkup(view, target);
+              if (!image) return false;
+              e.preventDefault();
+              e.stopPropagation();
+              if (action === "copy") {
+                navigator.clipboard.writeText(image.raw).catch(() => {});
+                return true;
+              }
+              if (action === "delete") {
+                view.dispatch({ changes: { from: image.from, to: image.to, insert: "" } });
+                return true;
+              }
+              if (action === "alt") {
+                const alt = window.prompt("Image alternative text:", image.alt);
+                if (alt === null) return true;
+                const title = image.align === "inline" ? "" : ` \"notedown-align:${image.align}\"`;
+                view.dispatch({ changes: { from: image.from, to: image.to, insert: `![${alt}](${image.src}${title})` } });
+                return true;
+              }
+              if (["inline", "left", "center", "right"].includes(action)) {
+                const title = action === "inline" ? "" : ` \"notedown-align:${action}\"`;
+                view.dispatch({ changes: { from: image.from, to: image.to, insert: `![${image.alt}](${image.src}${title})` } });
                 return true;
               }
               return false;

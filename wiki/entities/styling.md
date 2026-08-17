@@ -10,6 +10,11 @@ It also defines the CodeMirror live-preview presentation classes emitted by
 quotes, code boxes and copy button, bare URLs, autocomplete, and syntax colors.
 The editor pane supplies font/line-height/content-width custom properties.
 
+Editor and settings scrolling uses a narrow, rounded thumb with theme-derived
+colors. Image widgets reveal a seven-action contextual ribbon for alt text,
+alignment, copy, and removal; alignment is persisted in the Markdown image
+title as `notedown-align` metadata.
+
 The ribbon is positioned relative and [[toolbar]] is absolutely centered at
 50% of the viewport; the menu bar remains in normal flow on the left.
 

@@ -13,7 +13,9 @@ serialization step.
 - Links display only their text, images become widgets, blockquotes receive a
   bar, and fenced code gets a boxed visual treatment and copy button.
 - Inline and display `$...$` math becomes KaTeX only when the caret is outside
-  the math span. Raw math remains editable when entered.
+  the math span. Raw math remains editable when entered, including an empty
+  multiline `$$\n$$` span; the unfocused empty state shows an intentional
+  formula placeholder instead of disappearing.
 - Markdown link text opens on normal click; bare URLs require Ctrl/Cmd-click,
   so a normal click can still edit them.
 
@@ -24,12 +26,11 @@ than blanking the editor.
 
 ## Editing behavior
 
-`autoPairMarkers` only handles Markdown-oriented characters (`$`, backtick,
-`*`, `_`, `~`), not ordinary bracket pairing. [[editor-pane]] adds direct
+`autoPairMarkers` supports the enabled Markdown, quote, and bracket completion
+preferences. [[editor-pane]] adds direct
 shortcuts for bold, italic, underline, strike, inline code, and links; menus
 and the toolbar use [[editor-commands]]. Fenced language completion comes from
 [[codeblock]].
 
 This is a source-first experience, not a WYSIWYG DOM. The current renderer is
 partial; see [[known-limitations]] for unsupported or inconsistent features.
-

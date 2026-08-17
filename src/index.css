@@ -531,6 +531,33 @@ button {
 .nd-editor-host {
   height: 100%;
 }
+.nd-editor-scroll,
+.nd-editor-host .cm-scroller,
+.nd-settings-content {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--nd-text-dim) 54%, transparent) transparent;
+}
+.nd-editor-scroll::-webkit-scrollbar,
+.nd-editor-host .cm-scroller::-webkit-scrollbar,
+.nd-settings-content::-webkit-scrollbar { width: 11px; height: 11px; }
+.nd-editor-scroll::-webkit-scrollbar-track,
+.nd-editor-host .cm-scroller::-webkit-scrollbar-track,
+.nd-settings-content::-webkit-scrollbar-track { background: transparent; }
+.nd-editor-scroll::-webkit-scrollbar-thumb,
+.nd-editor-host .cm-scroller::-webkit-scrollbar-thumb,
+.nd-settings-content::-webkit-scrollbar-thumb {
+  min-height: 34px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nd-text-dim) 50%, transparent);
+  background-clip: padding-box;
+}
+.nd-editor-scroll::-webkit-scrollbar-thumb:hover,
+.nd-editor-host .cm-scroller::-webkit-scrollbar-thumb:hover,
+.nd-settings-content::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--nd-text) 62%, transparent);
+  background-clip: padding-box;
+}
 
 /* ---------- CodeMirror live preview ---------- */
 .nd-editor-host .cm-editor {
@@ -597,6 +624,15 @@ button {
   text-align: center;
   margin: 10px 0;
 }
+.cm-math-empty {
+  color: var(--nd-text-dim);
+  font-family: var(--crepe-font-code, "Cascadia Code", Consolas, monospace);
+  font-size: 0.9em;
+  font-style: italic;
+  padding: 10px 14px;
+  border: 1px dashed var(--nd-border);
+  border-radius: 7px;
+}
 
 /* Blockquote */
 .cm-quote {
@@ -655,6 +691,7 @@ button {
   transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .cm-code-first:hover .cm-code-copy,
+.cm-code-copy.cm-code-hover,
 .cm-code-copy:focus {
   opacity: 1;
 }
@@ -667,6 +704,59 @@ button {
   color: var(--nd-accent);
   border-color: var(--nd-accent);
 }
+
+/* Image widgets expose their editing ribbon on selection or anywhere over the image. */
+.cm-image-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 18px 0 8px;
+}
+.cm-image-wrap .cm-img { margin: 0; }
+.cm-image-inline { display: inline-block; }
+.cm-image-left { display: block; margin-right: auto; }
+.cm-image-center { display: block; margin-left: auto; margin-right: auto; }
+.cm-image-right { display: block; margin-left: auto; }
+.cm-image-toolbar {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--nd-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--nd-surface) 94%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 22%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+.cm-image-wrap:hover .cm-image-toolbar,
+.cm-image-wrap.cm-image-selected .cm-image-toolbar,
+.cm-image-toolbar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.cm-image-tool {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nd-text-dim);
+  cursor: pointer;
+  font-size: 16px;
+}
+.cm-image-tool:hover { background: var(--nd-hover); color: var(--nd-text); }
+.cm-image-tool[data-image-command="delete"]:hover { color: #e05b5b; }
 
 /* Unsaved-changes close confirmation modal */
 .nd-modal-backdrop {

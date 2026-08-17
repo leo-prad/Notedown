@@ -74,6 +74,11 @@ class MathWidget extends WidgetType {
   toDOM() {
     const el = document.createElement(this.display ? "div" : "span");
     el.className = "cm-math" + (this.display ? " cm-math-display" : "");
+    if (this.display && !this.tex.trim()) {
+      el.classList.add("cm-math-empty");
+      el.textContent = "‹ Empty Mathematical Formula ›";
+      return el;
+    }
     try {
       el.innerHTML = katex.renderToString(this.tex, {
         throwOnError: false,
@@ -132,18 +137,43 @@ class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly align: "inline" | "left" | "center" | "right" = "inline",
   ) {
     super();
   }
   eq(o: ImageWidget) {
-    return o.src === this.src && o.alt === this.alt;
+    return o.src === this.src && o.alt === this.alt && o.align === this.align;
   }
   toDOM() {
+    const wrap = document.createElement("span");
+    wrap.className = `cm-image-wrap cm-image-${this.align}`;
+    wrap.setAttribute("contenteditable", "false");
+    const tools = document.createElement("div");
+    tools.className = "cm-image-toolbar";
+    const actions: Array<[string, string, string]> = [
+      ["alt", "✎", "Edit alt text"],
+      ["inline", "▣", "Inline image"],
+      ["left", "≡", "Align left"],
+      ["center", "☰", "Center image"],
+      ["right", "≡", "Align right"],
+      ["copy", "⧉", "Copy image Markdown"],
+      ["delete", "⌫", "Remove image"],
+    ];
+    for (const [command, icon, title] of actions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cm-image-tool";
+      button.dataset.imageCommand = command;
+      button.title = title;
+      button.textContent = icon;
+      tools.append(button);
+    }
     const img = document.createElement("img");
     img.src = this.src;
     img.alt = this.alt;
     img.className = "cm-img";
-    return img;
+    wrap.append(tools, img);
+    return wrap;
   }
 }
 
@@ -154,7 +184,7 @@ interface MathSpan {
   display: boolean;
 }
 
-const MATH_RE = /\$\$([^$]+?)\$\$|\$(?!\s)((?:[^$\n]|\\\$)+?)(?<!\s)\$/g;
+const MATH_RE = /\$\$([\s\S]*?)\$\$|\$(?!\s)((?:[^$\n]|\\\$)+?)(?<!\s)\$/g;
 
 // Bare URLs: full http(s) links, or www./domain.tld forms. Trailing punctuation
 // is trimmed via the lookahead-friendly char class.
@@ -330,11 +360,15 @@ function buildDecorationsUnsafe(state: EditorState, docPath: string | null): Dec
       if (name === "Image") {
         if (!overlaps(sel.from, sel.to, node.from, node.to)) {
           const text = doc.sliceString(node.from, node.to);
-          const m = /^!\[([^\]]*)\]\(\s*([^)\s]+)/.exec(text);
+          const m = /^!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"notedown-align:(left|center|right|inline)")?\s*\)/.exec(text);
           if (m) {
             decos.push(
               Decoration.replace({
-                widget: new ImageWidget(resolveSrc(m[2], docPath), m[1]),
+                widget: new ImageWidget(
+                  resolveSrc(m[2], docPath),
+                  m[1],
+                  (m[3] as "inline" | "left" | "center" | "right" | undefined) ?? "inline",
+                ),
               }).range(node.from, node.to),
             );
           }

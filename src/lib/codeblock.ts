@@ -38,6 +38,28 @@ const LANG_ICON: Record<string, string> = {
   dockerfile: "🐳",
   r: "📊",
   dart: "🎯",
+  jade: "◆",
+  pug: "◆",
+  jinja: "◈",
+  jinja2: "◈",
+  vue: "🟩",
+  svelte: "🟧",
+  angular: "🅰",
+  react: "⚛",
+  node: "⬢",
+  nodejs: "⬢",
+  perl: "◉",
+  scala: "◆",
+  haskell: "λ",
+  lua: "◐",
+  elixir: "✦",
+  erlang: "◌",
+  zig: "⚡",
+  fsharp: "ƒ",
+  xml: "◇",
+  toml: "◇",
+  ini: "◇",
+  yml: "📄",
 };
 
 interface LangEntry {
@@ -55,7 +77,10 @@ const LANG_LIST: LangEntry[] = (() => {
     for (const n of names) {
       if (!n || seen.has(n)) continue;
       seen.add(n);
-      out.push({ label: n, icon: LANG_ICON[n] ?? "‹›" });
+      // Every completion deliberately has a leading symbol. A neutral code
+      // mark is preferable to the previous blank-looking fallback for aliases
+      // such as jade, jinja, and other less common grammars.
+      out.push({ label: n, icon: LANG_ICON[n] ?? "◇" });
     }
   }
   out.sort((a, b) => a.label.localeCompare(b.label));
