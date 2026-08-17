@@ -11,5 +11,8 @@ These items describe the checked-in code, not planned behavior.
 - Image `keep-absolute` still writes the dropped/pasted asset to Notedown's
   managed image folder; it controls the Markdown reference only. It does not
   preserve an arbitrary original source-file location.
+- Windows file associations provide the Notedown icon and open behavior, but
+  true per-document Explorer thumbnails are not implemented yet; they require
+  a signed `IThumbnailProvider` COM shell-extension DLL.
 - The outline matches only hash headings and ignores `~~~` fences. It navigates
   by heading text, so duplicate heading text jumps to the first match.

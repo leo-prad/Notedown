@@ -65,3 +65,7 @@ Replaced the retired ProseMirror export path with a source-driven Markdown-to-HT
 ## [2026-08-16] edit | Make editor and image preferences functional
 Touched: src/lib/livepreview.ts, src/components/{EditorPane,Settings,Toolbar}.tsx, src/lib/tauri.ts, wiki/entities/{editor-pane,settings}.md, wiki/concepts/known-limitations.md, wiki/log.md
 Connected indentation and auto-completion preferences to CodeMirror, including native-style skip-over behavior for existing closers; made image path strategy control generated Markdown references; and replaced inactive AI credential controls with an explicit unavailable state.
+
+## [2026-08-16] edit | Configure Windows release bundles and file associations
+Touched: src-tauri/tauri.conf.json, wiki/concepts/{windows-shell-integration,known-limitations}.md, wiki/log.md
+Configured the NSIS release target, bundle metadata, local Node build commands, and Windows associations for Markdown and text documents. Document content thumbnails remain a separate native shell-extension requirement.
